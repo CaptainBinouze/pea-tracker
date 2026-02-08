@@ -1,0 +1,71 @@
+<!-- Portfolio chart partial -->
+<div id="portfolio-chart-el" style="height: 350px;"></div>
+
+<script>
+(function() {
+    const data = {{ series | tojson }};
+    if (!data || data.length === 0) {
+        document.getElementById('portfolio-chart-el').innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-tertiary)">Pas assez de données pour afficher le graphique.</div>';
+        return;
+    }
+
+    const container = document.getElementById('portfolio-chart-el');
+    container.innerHTML = '';
+
+    const chart = LightweightCharts.createChart(container, {
+        height: 350,
+        layout: {
+            background: { type: 'solid', color: 'transparent' },
+            textColor: '#565D70',
+            fontFamily: "'Inter', system-ui, sans-serif",
+            fontSize: 12,
+        },
+        grid: {
+            vertLines: { color: 'rgba(255, 255, 255, 0.04)' },
+            horzLines: { color: 'rgba(255, 255, 255, 0.04)' },
+        },
+        rightPriceScale: {
+            borderVisible: false,
+            scaleMargins: { top: 0.1, bottom: 0.1 },
+        },
+        timeScale: {
+            borderVisible: false,
+            timeVisible: false,
+        },
+        crosshair: {
+            mode: LightweightCharts.CrosshairMode.Magnet,
+            vertLine: { color: 'rgba(0, 210, 255, 0.3)', width: 1, style: 0 },
+            horzLine: { color: 'rgba(0, 210, 255, 0.3)', width: 1, style: 0 },
+        },
+        handleScroll: { mouseWheel: true, pressedMouseMove: true },
+        handleScale: { mouseWheel: true, pinch: true },
+    });
+
+    // Portfolio value area
+    const valueSeries = chart.addAreaSeries({
+        lineColor: '#6C5CE7',
+        topColor: 'rgba(108, 92, 231, 0.25)',
+        bottomColor: 'rgba(108, 92, 231, 0.01)',
+        lineWidth: 2,
+        crosshairMarkerBackgroundColor: '#6C5CE7',
+        crosshairMarkerRadius: 4,
+    });
+    valueSeries.setData(data.map(d => ({ time: d.date, value: d.value })));
+
+    // Invested baseline (dashed)
+    const investedSeries = chart.addLineSeries({
+        color: '#565D70',
+        lineWidth: 1,
+        lineStyle: LightweightCharts.LineStyle.Dashed,
+        crosshairMarkerVisible: false,
+    });
+    investedSeries.setData(data.map(d => ({ time: d.date, value: d.invested })));
+
+    chart.timeScale().fitContent();
+
+    const ro = new ResizeObserver(entries => {
+        chart.applyOptions({ width: entries[0].contentRect.width });
+    });
+    ro.observe(container);
+})();
+</script>

@@ -1,0 +1,142 @@
+/* ============================================
+   PEA Tracker — Design Tokens
+   Dark-mode-first design system
+   ============================================ */
+
+:root {
+    /* ---- Background colors ---- */
+    --bg-primary:    #0B0D12;
+    --bg-secondary:  #111318;
+    --bg-tertiary:   #181B23;
+    --bg-surface:    #1E212B;
+    --bg-elevated:   #252836;
+    --bg-overlay:    rgba(0, 0, 0, 0.6);
+
+    /* ---- Text colors ---- */
+    --text-primary:   #F1F3F5;
+    --text-secondary: #8B92A5;
+    --text-tertiary:  #565D70;
+    --text-inverse:   #0B0D12;
+
+    /* ---- Accent colors ---- */
+    --accent-primary:       #6C5CE7;
+    --accent-primary-hover: #7E6FF0;
+    --accent-primary-muted: rgba(108, 92, 231, 0.12);
+    --accent-secondary:     #00D2FF;
+    --accent-secondary-muted: rgba(0, 210, 255, 0.12);
+
+    /* ---- Semantic colors ---- */
+    --positive:     #00D68F;
+    --positive-bg:  rgba(0, 214, 143, 0.10);
+    --positive-dim: rgba(0, 214, 143, 0.60);
+    --negative:     #FF4D6A;
+    --negative-bg:  rgba(255, 77, 106, 0.10);
+    --negative-dim: rgba(255, 77, 106, 0.60);
+    --warning:      #FFB020;
+    --warning-bg:   rgba(255, 176, 32, 0.10);
+    --info:         #3B82F6;
+    --info-bg:      rgba(59, 130, 246, 0.10);
+
+    /* ---- Border colors ---- */
+    --border-subtle:  rgba(255, 255, 255, 0.06);
+    --border-default: rgba(255, 255, 255, 0.10);
+    --border-hover:   rgba(255, 255, 255, 0.16);
+    --border-focus:   rgba(108, 92, 231, 0.50);
+
+    /* ---- Shadows ---- */
+    --shadow-sm:  0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-md:  0 4px 12px rgba(0, 0, 0, 0.4);
+    --shadow-lg:  0 8px 32px rgba(0, 0, 0, 0.5);
+    --shadow-glow: 0 0 20px rgba(108, 92, 231, 0.15);
+
+    /* ---- Border radius ---- */
+    --radius-xs:   4px;
+    --radius-sm:   8px;
+    --radius-md:   12px;
+    --radius-lg:   16px;
+    --radius-xl:   20px;
+    --radius-full: 9999px;
+
+    /* ---- Typography ---- */
+    --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+
+    --text-xs:  0.75rem;    /* 12px */
+    --text-sm:  0.8125rem;  /* 13px */
+    --text-base: 0.875rem;  /* 14px */
+    --text-md:  1rem;       /* 16px */
+    --text-lg:  1.125rem;   /* 18px */
+    --text-xl:  1.25rem;    /* 20px */
+    --text-2xl: 1.5rem;     /* 24px */
+    --text-3xl: 1.875rem;   /* 30px */
+    --text-4xl: 2.25rem;    /* 36px */
+
+    --weight-normal:   400;
+    --weight-medium:   500;
+    --weight-semibold: 600;
+    --weight-bold:     700;
+
+    --leading-tight:  1.25;
+    --leading-normal: 1.5;
+    --leading-relaxed: 1.75;
+
+    --tracking-tight:  -0.01em;
+    --tracking-normal: 0;
+    --tracking-wide:   0.04em;
+    --tracking-wider:  0.08em;
+
+    /* ---- Spacing ---- */
+    --space-1:  4px;
+    --space-2:  8px;
+    --space-3:  12px;
+    --space-4:  16px;
+    --space-5:  20px;
+    --space-6:  24px;
+    --space-8:  32px;
+    --space-10: 40px;
+    --space-12: 48px;
+    --space-16: 64px;
+
+    /* ---- Transitions ---- */
+    --transition-fast: 150ms ease;
+    --transition-base: 250ms ease;
+    --transition-slow: 350ms ease;
+
+    /* ---- Layout ---- */
+    --sidebar-width:     240px;
+    --sidebar-collapsed:  64px;
+    --content-max-width: 1200px;
+    --bottom-nav-height:  64px;
+    --header-height:      56px;
+
+    /* ---- Z-index scale ---- */
+    --z-dropdown:  100;
+    --z-sticky:    200;
+    --z-overlay:   300;
+    --z-modal:     400;
+    --z-toast:     500;
+
+    /* ---- Chart colors ---- */
+    --chart-line:       #6C5CE7;
+    --chart-area-top:   rgba(108, 92, 231, 0.25);
+    --chart-area-bottom: rgba(108, 92, 231, 0.01);
+    --chart-invested:   #565D70;
+    --chart-grid:       rgba(255, 255, 255, 0.04);
+    --chart-crosshair:  rgba(0, 210, 255, 0.5);
+    --chart-candle-up:  #00D68F;
+    --chart-candle-down:#FF4D6A;
+
+    /* ---- Allocation palette ---- */
+    --alloc-1:  #6C5CE7;
+    --alloc-2:  #00D2FF;
+    --alloc-3:  #00D68F;
+    --alloc-4:  #FFB020;
+    --alloc-5:  #FF4D6A;
+    --alloc-6:  #A78BFA;
+    --alloc-7:  #F97316;
+    --alloc-8:  #EC4899;
+    --alloc-9:  #14B8A6;
+    --alloc-10: #8B5CF6;
+    --alloc-11: #06B6D4;
+    --alloc-12: #EAB308;
+}

@@ -1,0 +1,44 @@
+<!-- Positions table partial -->
+<div class="table-responsive">
+    <table>
+        <thead>
+            <tr>
+                <th>Position</th>
+                <th class="right hide-mobile">Qté</th>
+                <th class="right hide-mobile">PRU</th>
+                <th class="right">Cours</th>
+                <th class="right">P&L</th>
+                <th class="right hide-mobile">Poids</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in positions %}
+            <tr class="position-row" onclick="window.location='{{ url_for('portfolio.position_detail', symbol=p.ticker.symbol) }}'">
+                <td>
+                    <div class="position-ticker">
+                        <span class="position-ticker-symbol">{{ p.ticker.symbol }}</span>
+                        <span class="position-ticker-name">{{ p.ticker.name }}</span>
+                    </div>
+                </td>
+                <td class="right hide-mobile">{{ "%.2f" | format(p.quantity) }}</td>
+                <td class="right hide-mobile">{{ p.pru | currency }}</td>
+                <td class="right">
+                    <div>{{ p.current_price | currency }}</div>
+                    {% if p.daily_change %}
+                    <span class="pill {{ 'pill-positive' if p.daily_change > 0 else 'pill-negative' }}" style="font-size:0.65rem">
+                        {{ p.daily_change | pct }}
+                    </span>
+                    {% endif %}
+                </td>
+                <td class="right">
+                    <div class="{{ p.unrealized_pnl | color }}">{{ p.unrealized_pnl | currency }}</div>
+                    <span class="pill {{ 'pill-positive' if p.unrealized_pnl_pct and p.unrealized_pnl_pct > 0 else 'pill-negative' }}" style="font-size:0.65rem">
+                        {{ p.unrealized_pnl_pct | pct }}
+                    </span>
+                </td>
+                <td class="right hide-mobile text-muted">{{ "%.1f" | format(p.weight) }}%</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>

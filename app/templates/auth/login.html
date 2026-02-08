@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Connexion — PEA Tracker{% endblock %}
+
+{% block content %}
+<div class="auth-page">
+    <!-- Branding panel (hidden on mobile) -->
+    <div class="auth-branding">
+        <div class="auth-branding-content">
+            <div class="auth-branding-logo">
+                <svg width="40" height="40" viewBox="0 0 28 28" fill="none">
+                    <rect width="28" height="28" rx="8" fill="var(--accent-primary-muted)"/>
+                    <path d="M7 20V12L11 8L15 13L19 6L22 11V20H7Z" fill="var(--accent-primary)" opacity="0.3"/>
+                    <path d="M7 18L11 13L15 16L22 8" stroke="var(--accent-primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <h1>PEA <span>Tracker</span></h1>
+            </div>
+            <h2>Suivez votre PEA en toute élégance</h2>
+            <p>Visualisez vos positions, suivez vos performances et recevez des alertes de prix en temps réel.</p>
+        </div>
+    </div>
+
+    <!-- Login form -->
+    <div class="auth-form-section">
+        <div class="auth-card animate-fade-in-up">
+            <h2>Connexion</h2>
+            <p class="auth-subtitle">Accédez à votre portefeuille</p>
+
+            <form method="post" action="{{ url_for('auth.login') }}">
+                {{ form.hidden_tag() }}
+
+                <div class="form-group">
+                    <label for="email">{{ form.email.label.text }}</label>
+                    {{ form.email(id="email", type="email", autocomplete="email", required=true, placeholder="votre@email.com") }}
+                    {% for error in form.email.errors %}<small class="error">{{ error }}</small>{% endfor %}
+                </div>
+
+                <div class="form-group">
+                    <label for="password">{{ form.password.label.text }}</label>
+                    {{ form.password(id="password", autocomplete="current-password", required=true, placeholder="••••••••") }}
+                    {% for error in form.password.errors %}<small class="error">{{ error }}</small>{% endfor %}
+                </div>
+
+                <input type="submit" value="Se connecter">
+            </form>
+
+            <div class="auth-footer">
+                <small>Pas encore de compte ? <a href="{{ url_for('auth.register') }}">Créer un compte</a></small>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

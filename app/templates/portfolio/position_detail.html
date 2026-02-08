@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+{% block title %}{{ ticker.symbol }} — PEA Tracker{% endblock %}
+
+{% block head %}
+<script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
+{% endblock %}
+
+{% block content %}
+<!-- Back link -->
+<a href="{{ url_for('portfolio.dashboard') }}" class="position-back-link">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+    Dashboard
+</a>
+
+<!-- Position header -->
+<div class="position-header animate-fade-in-up">
+    <div class="position-header-top">
+        <h1 class="position-symbol">{{ ticker.symbol }}</h1>
+        <span class="position-exchange">{{ ticker.exchange }}</span>
+    </div>
+    <p class="position-name">{{ ticker.name }}</p>
+</div>
+
+<!-- Position summary -->
+<div class="summary-grid stagger-fade">
+    <div class="metric-card">
+        <div class="metric-label">Quantité</div>
+        <div class="metric-value">{{ "%.2f" | format(position.quantity) }}</div>
+    </div>
+    <div class="metric-card">
+        <div class="metric-label">PRU</div>
+        <div class="metric-value">{{ position.pru | currency }}</div>
+    </div>
+    <div class="metric-card">
+        <div class="metric-label">Cours actuel</div>
+        <div class="metric-value">{{ position.current_price | currency }}</div>
+    </div>
+    <div class="metric-card">
+        <div class="metric-label">+/- Value</div>
+        <div class="metric-value {{ position.unrealized_pnl | color }}">{{ position.unrealized_pnl | currency }}</div>
+        <div class="metric-sub">
+            <span class="pill {{ 'pill-positive' if position.unrealized_pnl_pct and position.unrealized_pnl_pct > 0 else 'pill-negative' }}">
+                {{ position.unrealized_pnl_pct | pct }}
+            </span>
+        </div>
+    </div>
+    <div class="metric-card">
+        <div class="metric-label">Valeur</div>
+        <div class="metric-value">{{ position.market_value | currency }}</div>
+    </div>
+    <div class="metric-card">
+        <div class="metric-label">Poids</div>
+        <div class="metric-value">{{ "%.1f" | format(position.weight) }}%</div>
+    </div>
+</div>
+
+<!-- Candlestick chart -->
+<div class="chart-card">
+    <div class="chart-card-header">
+        <h3>Historique des cours</h3>
+    </div>
+    <div id="candlestick-chart" class="chart-container" style="height: 400px;"></div>
+</div>
+
+<!-- Transactions for this ticker -->
+<div class="card mb-6">
+    <div class="card-header">
+        <h3>Transactions</h3>
+        <span class="card-count">{{ transactions | length }}</span>
+    </div>
+    {% if transactions %}
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Type</th>
+                    <th class="right">Qté</th>
+                    <th class="right">Prix</th>
+                    <th class="right hide-mobile">Frais</th>
+                    <th class="right">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for tx in transactions %}
+                <tr>
+                    <td class="text-muted">{{ tx.date.strftime('%d/%m/%Y') }}</td>
+                    <td>
+                        <span class="pill {{ 'pill-positive' if tx.type == 'BUY' else 'pill-negative' }}">
+                            {{ 'Achat' if tx.type == 'BUY' else 'Vente' }}
+                        </span>
+                    </td>
+                    <td class="right">{{ "%.4f" | format(tx.quantity) }}</td>
+                    <td class="right">{{ tx.price_per_share | currency }}</td>
+                    <td class="right hide-mobile text-muted">{{ tx.fees | currency }}</td>
+                    <td class="right">{{ tx.total_cost | currency }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="text-muted" style="padding: var(--space-4)">Aucune transaction.</p>
+    {% endif %}
+</div>
+
+<!-- Dividends -->
+{% if dividends %}
+<div class="card">
+    <div class="card-header">
+        <h3>Dividendes</h3>
+        <span class="card-count">{{ dividends | length }}</span>
+    </div>
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th class="right">Montant/action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for d in dividends %}
+                <tr>
+                    <td class="text-muted">{{ d.date.strftime('%d/%m/%Y') }}</td>
+                    <td class="right">{{ d.amount_per_share | currency }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    const priceData = {{ price_data | tojson }};
+    if (!priceData || priceData.length === 0) return;
+
+    const container = document.getElementById('candlestick-chart');
+    const chart = LightweightCharts.createChart(container, {
+        height: 400,
+        layout: {
+            background: { type: 'solid', color: 'transparent' },
+            textColor: '#565D70',
+            fontFamily: "'Inter', system-ui, sans-serif",
+            fontSize: 12,
+        },
+        grid: {
+            vertLines: { color: 'rgba(255, 255, 255, 0.04)' },
+            horzLines: { color: 'rgba(255, 255, 255, 0.04)' },
+        },
+        rightPriceScale: {
+            borderVisible: false,
+            scaleMargins: { top: 0.05, bottom: 0.05 },
+        },
+        timeScale: { borderVisible: false },
+        crosshair: {
+            vertLine: { color: 'rgba(0, 210, 255, 0.3)', width: 1 },
+            horzLine: { color: 'rgba(0, 210, 255, 0.3)', width: 1 },
+        },
+    });
+
+    const candleSeries = chart.addCandlestickSeries({
+        upColor: '#00D68F',
+        downColor: '#FF4D6A',
+        borderUpColor: '#00D68F',
+        borderDownColor: '#FF4D6A',
+        wickUpColor: '#00D68F',
+        wickDownColor: '#FF4D6A',
+    });
+    candleSeries.setData(priceData);
+    chart.timeScale().fitContent();
+
+    const ro = new ResizeObserver(entries => {
+        chart.applyOptions({ width: entries[0].contentRect.width });
+    });
+    ro.observe(container);
+})();
+</script>
+{% endblock %}

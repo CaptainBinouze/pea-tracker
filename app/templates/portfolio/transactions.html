@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}Transactions — PEA Tracker{% endblock %}
+
+{% block content %}
+<div class="page-header flex-between">
+    <div>
+        <h1 class="page-title">Transactions</h1>
+        <p class="page-subtitle">Historique de vos achats et ventes</p>
+    </div>
+    <button class="btn btn-primary transaction-add-btn" onclick="document.getElementById('tx-modal').classList.add('active')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Ajouter
+    </button>
+</div>
+
+<!-- Modal drawer for transaction form -->
+<div id="tx-modal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('active')">
+    <div class="modal-drawer">
+        <div class="modal-drawer-header">
+            <h3>Nouvelle transaction</h3>
+            <button class="modal-drawer-close" onclick="document.getElementById('tx-modal').classList.remove('active')">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+
+        <form method="post" action="{{ url_for('portfolio.add_transaction') }}">
+            {{ form.hidden_tag() }}
+
+            <!-- Ticker search -->
+            <div class="form-group">
+                <label for="ticker_symbol">{{ form.ticker_symbol.label.text }}</label>
+                <div class="ticker-search">
+                    <input type="text" id="ticker_symbol" name="ticker_symbol"
+                           placeholder="Rechercher (ex: TTE.PA, CW8...)"
+                           autocomplete="off" required
+                           hx-get="{{ url_for('market.search') }}"
+                           hx-trigger="keyup changed delay:300ms"
+                           hx-target="#ticker-results"
+                           hx-swap="innerHTML"
+                           hx-vals='js:{"q": document.getElementById("ticker_symbol").value}'>
+                    <div id="ticker-results" class="ticker-dropdown"></div>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="type">{{ form.type.label.text }}</label>
+                    {{ form.type(id="type") }}
+                </div>
+                <div class="form-group">
+                    <label for="date">{{ form.date.label.text }}</label>
+                    {{ form.date(id="date", type="date", required=true) }}
+                </div>
+                <div class="form-group">
+                    <label for="quantity">{{ form.quantity.label.text }}</label>
+                    {{ form.quantity(id="quantity", type="number", step="0.0001", min="0.0001", required=true, placeholder="0") }}
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="price_per_share">{{ form.price_per_share.label.text }}</label>
+                    {{ form.price_per_share(id="price_per_share", type="number", step="0.01", min="0.01", required=true, placeholder="0.00") }}
+                </div>
+                <div class="form-group">
+                    <label for="fees">{{ form.fees.label.text }}</label>
+                    {{ form.fees(id="fees", type="number", step="0.01", min="0", value="0", placeholder="0.00") }}
+                </div>
+                <div></div>
+            </div>
+
+            <div class="form-group">
+                <label for="notes">{{ form.notes.label.text }}</label>
+                {{ form.notes(id="notes", rows="2", placeholder="Notes optionnelles...") }}
+            </div>
+
+            <input type="submit" value="Enregistrer la transaction">
+        </form>
+    </div>
+</div>
+
+<!-- Transactions list -->
+<div class="card">
+    <div id="transactions-list">
+        {% include "portfolio/partials/transactions_list.html" %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Ticker search: select from dropdown
+document.addEventListener('click', function(e) {
+    const opt = e.target.closest('.ticker-option');
+    if (opt) {
+        document.getElementById('ticker_symbol').value = opt.dataset.symbol;
+        document.getElementById('ticker-results').innerHTML = '';
+    }
+});
+// Close dropdown on click outside
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('.ticker-search')) {
+        document.getElementById('ticker-results').innerHTML = '';
+    }
+});
+// Open modal if there are form errors
+{% if form.errors %}
+document.getElementById('tx-modal').classList.add('active');
+{% endif %}
+// Close modal on Escape
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        document.getElementById('tx-modal').classList.remove('active');
+    }
+});
+</script>
+{% endblock %}

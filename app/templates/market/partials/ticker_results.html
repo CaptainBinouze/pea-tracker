@@ -1,0 +1,14 @@
+<!-- Ticker search results dropdown partial -->
+{% if results %}
+{% for t in results %}
+<div class="ticker-option" data-symbol="{{ t.symbol }}">
+    <div class="ticker-option__info">
+        <span class="ticker-option__symbol">{{ t.symbol }}</span>
+        <span class="ticker-option__name">{{ t.name }}</span>
+    </div>
+    <span class="ticker-option__exchange">{{ t.exchange }}</span>
+</div>
+{% endfor %}
+{% elif query %}
+<div class="ticker-no-result">Aucun résultat pour « {{ query }} »</div>
+{% endif %}

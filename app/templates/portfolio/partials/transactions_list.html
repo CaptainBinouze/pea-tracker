@@ -1,0 +1,83 @@
+<!-- Transactions list partial -->
+{% if transactions.items %}
+<div class="table-responsive">
+    <table>
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Type</th>
+                <th>Ticker</th>
+                <th class="right hide-mobile">Qté</th>
+                <th class="right">Prix</th>
+                <th class="right hide-mobile">Frais</th>
+                <th class="right">Total</th>
+                <th class="right" style="width:40px"></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for tx in transactions.items %}
+            <tr>
+                <td class="text-muted">{{ tx.date.strftime('%d/%m/%Y') }}</td>
+                <td>
+                    <span class="pill {{ 'pill-positive' if tx.type == 'BUY' else 'pill-negative' }}">
+                        {{ 'Achat' if tx.type == 'BUY' else 'Vente' }}
+                    </span>
+                </td>
+                <td>
+                    <a href="{{ url_for('portfolio.position_detail', symbol=tx.ticker.symbol) }}" class="position-ticker-symbol">
+                        {{ tx.ticker.symbol }}
+                    </a>
+                </td>
+                <td class="right hide-mobile">{{ "%.4f" | format(tx.quantity) }}</td>
+                <td class="right">{{ tx.price_per_share | currency }}</td>
+                <td class="right hide-mobile text-muted">{{ tx.fees | currency }}</td>
+                <td class="right">{{ tx.total_cost | currency }}</td>
+                <td class="right">
+                    <form method="post"
+                          action="{{ url_for('portfolio.delete_transaction', tx_id=tx.id) }}"
+                          hx-post="{{ url_for('portfolio.delete_transaction', tx_id=tx.id) }}"
+                          hx-target="#transactions-list"
+                          hx-swap="innerHTML"
+                          hx-confirm="Supprimer cette transaction ?">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-icon btn-danger btn-sm" title="Supprimer">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                            </svg>
+                        </button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Pagination -->
+{% if transactions.pages > 1 %}
+<nav class="pagination">
+    {% if transactions.has_prev %}
+    <a href="{{ url_for('portfolio.transactions', page=transactions.prev_num) }}" class="btn btn-ghost btn-sm">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+        Précédent
+    </a>
+    {% endif %}
+    <span class="pill pill-neutral">{{ transactions.page }} / {{ transactions.pages }}</span>
+    {% if transactions.has_next %}
+    <a href="{{ url_for('portfolio.transactions', page=transactions.next_num) }}" class="btn btn-ghost btn-sm">
+        Suivant
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+    </a>
+    {% endif %}
+</nav>
+{% endif %}
+
+{% else %}
+<div class="empty-state" style="padding: var(--space-10) var(--space-4)">
+    <div class="empty-state-icon" style="width:56px;height:56px">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="7 17 17 7"/><polyline points="7 7 17 7 17 17"/></svg>
+    </div>
+    <h3 style="font-size:var(--text-md)">Aucune transaction</h3>
+    <p>Ajoutez votre première transaction pour commencer le suivi.</p>
+</div>
+{% endif %}

@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — PEA Tracker{% endblock %}
+
+{% block head %}
+<script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">Dashboard</h1>
+    <p class="page-subtitle">Vue d'ensemble de votre portefeuille PEA</p>
+</div>
+
+{% if summary.num_positions == 0 %}
+<!-- Empty state -->
+<div class="empty-state animate-fade-in-up">
+    <div class="empty-state-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/>
+            <path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/>
+            <path d="M18 12a2 2 0 0 0 0 4h4v-4h-4z"/>
+        </svg>
+    </div>
+    <h3>Bienvenue sur PEA Tracker !</h3>
+    <p>Votre portefeuille est vide. Commencez par enregistrer vos premières transactions.</p>
+    <a href="{{ url_for('portfolio.transactions') }}" class="btn btn-primary btn-lg">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Ajouter une transaction
+    </a>
+</div>
+
+{% else %}
+
+<!-- Summary cards -->
+<div id="summary-cards"
+     hx-get="{{ url_for('portfolio.dashboard_summary') }}"
+     hx-trigger="every 120s"
+     hx-swap="innerHTML">
+    {% include "portfolio/partials/summary_cards.html" %}
+</div>
+
+<!-- Portfolio evolution chart -->
+<div class="chart-card animate-fade-in-up">
+    <div class="chart-card-header">
+        <h3>Évolution du portefeuille</h3>
+        <div class="period-selector">
+            {% for p in ['1M', '3M', '6M', '1Y', 'MAX'] %}
+            <a href="#" class="period-btn {% if period == p %}active{% endif %}"
+               hx-get="{{ url_for('portfolio.dashboard_chart', period=p) }}"
+               hx-target="#chart-container"
+               hx-swap="innerHTML">{{ p }}</a>
+            {% endfor %}
+        </div>
+    </div>
+    <div id="chart-container" class="chart-container">
+        {% include "portfolio/partials/portfolio_chart.html" %}
+    </div>
+</div>
+
+<!-- Two-column layout: Positions + Allocation -->
+<div class="grid-2">
+    <!-- Positions table -->
+    <div class="card">
+        <div class="card-header">
+            <h3>Positions</h3>
+            <span class="card-count">{{ summary.positions | length }}</span>
+        </div>
+        <div id="positions-table"
+             hx-get="{{ url_for('portfolio.dashboard_positions') }}"
+             hx-trigger="every 120s"
+             hx-swap="innerHTML">
+            {% set positions = summary.positions %}
+            {% include "portfolio/partials/positions_table.html" %}
+        </div>
+    </div>
+
+    <!-- Allocation pie chart -->
+    <div class="card allocation-card">
+        <div class="card-header">
+            <h3>Répartition</h3>
+        </div>
+        <div class="allocation-chart-wrapper">
+            <canvas id="allocationPie" height="260"></canvas>
+        </div>
+        <div id="allocation-legend" class="allocation-legend"></div>
+    </div>
+</div>
+
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if summary.num_positions > 0 %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const positions = {{ chart_positions | tojson }};
+    const labels = positions.map(p => p.symbol);
+    const data = positions.map(p => p.weight);
+    const colors = [
+        'var(--alloc-1)', 'var(--alloc-2)', 'var(--alloc-3)', 'var(--alloc-4)',
+        'var(--alloc-5)', 'var(--alloc-6)', 'var(--alloc-7)', 'var(--alloc-8)',
+        'var(--alloc-9)', 'var(--alloc-10)', 'var(--alloc-11)', 'var(--alloc-12)'
+    ];
+    const hexColors = [
+        '#6C5CE7', '#00D2FF', '#00D68F', '#FFB020',
+        '#FF4D6A', '#A78BFA', '#F97316', '#EC4899',
+        '#14B8A6', '#8B5CF6', '#06B6D4', '#EAB308'
+    ];
+
+    const ctx = document.getElementById('allocationPie');
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: data,
+                backgroundColor: hexColors.slice(0, labels.length),
+                borderWidth: 0,
+                borderRadius: 3,
+                spacing: 2,
+            }]
+        },
+        options: {
+            responsive: true,
+            cutout: '70%',
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: '#252836',
+                    titleColor: '#F1F3F5',
+                    bodyColor: '#8B92A5',
+                    borderColor: 'rgba(255,255,255,0.1)',
+                    borderWidth: 1,
+                    cornerRadius: 8,
+                    padding: 12,
+                    callbacks: {
+                        label: function(ctx) {
+                            return ctx.label + ': ' + ctx.parsed.toFixed(1) + '%';
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // Custom legend
+    const legendEl = document.getElementById('allocation-legend');
+    labels.forEach((label, i) => {
+        const item = document.createElement('div');
+        item.className = 'allocation-legend-item';
+        item.innerHTML = '<span class="allocation-legend-dot" style="background:' + hexColors[i % hexColors.length] + '"></span>'
+            + '<span>' + label + '</span>'
+            + '<span class="allocation-legend-pct">' + data[i].toFixed(1) + '%</span>';
+        legendEl.appendChild(item);
+    });
+});
+</script>
+{% endif %}
+{% endblock %}

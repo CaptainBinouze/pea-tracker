@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+{% block title %}Alertes — PEA Tracker{% endblock %}
+
+{% block content %}
+<!-- Page header -->
+<div class="page-header flex-between">
+    <div>
+        <h1>Alertes de prix</h1>
+        <p class="text-secondary">Recevez une notification lorsqu'un seuil est atteint</p>
+    </div>
+    <button class="btn btn-primary" onclick="document.getElementById('alert-modal').classList.add('active')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Nouvelle alerte
+    </button>
+</div>
+
+<!-- Modal drawer — add alert -->
+<div class="modal-overlay" id="alert-modal">
+    <div class="modal-drawer">
+        <div class="modal-header">
+            <h3>Créer une alerte</h3>
+            <button class="btn btn-icon" onclick="document.getElementById('alert-modal').classList.remove('active')" aria-label="Fermer">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+        <form method="post" action="{{ url_for('alerts.add_alert') }}">
+            {{ form.hidden_tag() }}
+            <div class="form-group">
+                <label for="ticker_symbol">Ticker</label>
+                <div class="ticker-search">
+                    <input type="text" id="ticker_symbol" name="ticker_symbol"
+                           placeholder="Rechercher un titre (ex: TTE.PA)"
+                           autocomplete="off" required
+                           hx-get="{{ url_for('market.search') }}"
+                           hx-trigger="keyup changed delay:300ms"
+                           hx-target="#alert-ticker-results"
+                           hx-swap="innerHTML"
+                           hx-vals='js:{"q": document.getElementById("ticker_symbol").value}'>
+                    <div id="alert-ticker-results" class="ticker-dropdown"></div>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="condition">Condition</label>
+                    {{ form.condition(id="condition") }}
+                </div>
+                <div class="form-group">
+                    <label for="threshold_price">Prix seuil (€)</label>
+                    {{ form.threshold_price(id="threshold_price", type="number", step="0.01", min="0.01", required=true) }}
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">Créer l'alerte</button>
+        </form>
+    </div>
+</div>
+
+<!-- Active alerts -->
+<div class="card">
+    <div class="card-header">
+        <h3>Alertes actives</h3>
+        {% if active %}<span class="pill pill-accent">{{ active | length }}</span>{% endif %}
+    </div>
+    <div id="alerts-list">
+        {% include "alerts/partials/alerts_list.html" with context %}
+    </div>
+</div>
+
+<!-- Triggered alerts -->
+{% if triggered %}
+<div class="card triggered-section">
+    <div class="card-header">
+        <h3>Alertes déclenchées</h3>
+        <span class="pill pill-warning">{{ triggered | length }}</span>
+    </div>
+    <div class="alerts-grid">
+        {% for alert in triggered %}
+        <div class="alert-card alert-card--triggered">
+            <div class="alert-card__header">
+                <span class="alert-card__symbol">{{ alert.ticker.symbol }}</span>
+                <span class="pill pill-warning">Déclenchée</span>
+            </div>
+            <div class="alert-card__body">
+                <div class="alert-card__detail">
+                    <span class="text-secondary">Condition</span>
+                    <span>{{ "Au-dessus de" if alert.condition == "ABOVE" else "En-dessous de" }} {{ alert.threshold_price | currency }}</span>
+                </div>
+                {% if alert.current_price is not none %}
+                <div class="alert-card__detail">
+                    <span class="text-secondary">Cours actuel</span>
+                    <span>{{ alert.current_price | currency }}</span>
+                </div>
+                {% endif %}
+                <div class="alert-card__detail">
+                    <span class="text-secondary">Déclenchée le</span>
+                    <span>{{ alert.last_triggered_at.strftime('%d/%m/%Y à %H:%M') if alert.last_triggered_at else '—' }}</span>
+                </div>
+            </div>
+            <div class="alert-card__actions">
+                <form method="post" action="{{ url_for('alerts.reset_alert', alert_id=alert.id) }}" style="display:inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-secondary btn-sm" title="Réactiver cette alerte">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                        Réactiver
+                    </button>
+                </form>
+                <form method="post" action="{{ url_for('alerts.delete_alert', alert_id=alert.id) }}" style="display:inline"
+                      onsubmit="return confirm('Supprimer cette alerte ?')">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-ghost btn-sm" title="Supprimer">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Ticker dropdown selection
+document.addEventListener('click', function(e) {
+    const opt = e.target.closest('.ticker-option');
+    if (opt) {
+        document.getElementById('ticker_symbol').value = opt.dataset.symbol;
+        document.getElementById('alert-ticker-results').innerHTML = '';
+    }
+});
+// Close dropdown on outside click
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('.ticker-search')) {
+        document.getElementById('alert-ticker-results').innerHTML = '';
+    }
+});
+// Close modal on Escape
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        document.getElementById('alert-modal').classList.remove('active');
+    }
+});
+// Close modal on overlay click
+document.getElementById('alert-modal').addEventListener('click', function(e) {
+    if (e.target === this) this.classList.remove('active');
+});
+// Auto-open modal if form has errors
+{% if form.errors %}
+document.getElementById('alert-modal').classList.add('active');
+{% endif %}
+</script>
+{% endblock %}

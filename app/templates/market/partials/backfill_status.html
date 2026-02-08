@@ -1,0 +1,21 @@
+<!-- Backfill status banner partial -->
+{% set _pending = pending | default(0) %}
+{% set _done = done | default(_pending == 0) %}
+{% if not _done and _pending > 0 %}
+<div class="backfill-banner" role="alert"
+     hx-get="{{ url_for('market.backfill_status') }}"
+     hx-trigger="every 3s"
+     hx-swap="outerHTML">
+    <svg class="spinner-sm" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-primary)" stroke-width="2.5" stroke-linecap="round"><path d="M12 2v4m0 12v4m-7.07-15.07 2.83 2.83m8.48 8.48 2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48 2.83-2.83"/></svg>
+    <span>Récupération des données historiques en cours… <strong>{{ _pending }}</strong> en attente</span>
+</div>
+{% elif result is defined and result.processed is defined %}
+<div class="backfill-banner backfill-banner--done" id="backfill-banner">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--positive)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+    <span>Synchronisation terminée — {{ result.processed }} élément(s) traité(s)</span>
+</div>
+{% else %}
+<div class="backfill-banner backfill-banner--done" id="backfill-banner">
+    <!-- All done — banner will fade out -->
+</div>
+{% endif %}

@@ -1,0 +1,55 @@
+<!-- Summary cards partial -->
+<div class="summary-grid stagger-fade">
+    <div class="metric-card">
+        <div class="metric-card-icon accent">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4h-4z"/></svg>
+        </div>
+        <div class="metric-label">Valeur totale</div>
+        <div class="metric-value">{{ summary.total_value | currency }}</div>
+    </div>
+
+    <div class="metric-card">
+        <div class="metric-card-icon accent">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="7 17 17 7"/><polyline points="7 7 17 7 17 17"/></svg>
+        </div>
+        <div class="metric-label">Total investi</div>
+        <div class="metric-value">{{ summary.total_invested | currency }}</div>
+    </div>
+
+    <div class="metric-card">
+        <div class="metric-card-icon {{ 'positive' if summary.total_unrealized_pnl and summary.total_unrealized_pnl > 0 else 'negative' }}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+        </div>
+        <div class="metric-label">+/- Value latente</div>
+        <div class="metric-value {{ summary.total_unrealized_pnl | color }}">{{ summary.total_unrealized_pnl | currency }}</div>
+        <div class="metric-sub">
+            <span class="pill {{ 'pill-positive' if summary.total_unrealized_pnl_pct and summary.total_unrealized_pnl_pct > 0 else 'pill-negative' }}">
+                {{ summary.total_unrealized_pnl_pct | pct }}
+            </span>
+        </div>
+    </div>
+
+    <div class="metric-card">
+        <div class="metric-card-icon {{ 'positive' if summary.total_realized_pnl and summary.total_realized_pnl > 0 else 'negative' if summary.total_realized_pnl and summary.total_realized_pnl < 0 else 'accent' }}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M16 8l-8 8"/><path d="M8 8h8v8"/></svg>
+        </div>
+        <div class="metric-label">+/- Value réalisée</div>
+        <div class="metric-value {{ summary.total_realized_pnl | color }}">{{ summary.total_realized_pnl | currency }}</div>
+    </div>
+
+    <div class="metric-card">
+        <div class="metric-card-icon positive">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        </div>
+        <div class="metric-label">Dividendes perçus</div>
+        <div class="metric-value">{{ summary.total_dividends | currency }}</div>
+    </div>
+
+    <div class="metric-card">
+        <div class="metric-card-icon {{ 'positive' if summary.total_return and summary.total_return > 0 else 'negative' if summary.total_return and summary.total_return < 0 else 'accent' }}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+        </div>
+        <div class="metric-label">Rendement total</div>
+        <div class="metric-value {{ summary.total_return | color }}">{{ summary.total_return | currency }}</div>
+    </div>
+</div>
