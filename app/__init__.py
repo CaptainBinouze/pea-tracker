@@ -27,11 +27,13 @@ def create_app(config_class=Config):
     from app.portfolio.routes import portfolio_bp
     from app.market.routes import market_bp
     from app.alerts.routes import alerts_bp
+    from app.notifications import notifications_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(portfolio_bp)
     app.register_blueprint(market_bp)
     app.register_blueprint(alerts_bp)
+    app.register_blueprint(notifications_bp)
 
     # Root redirect
     @app.route("/")

@@ -49,7 +49,8 @@
             <a href="#" class="period-btn {% if period == p %}active{% endif %}"
                hx-get="{{ url_for('portfolio.dashboard_chart', period=p) }}"
                hx-target="#chart-container"
-               hx-swap="innerHTML">{{ p }}</a>
+               hx-swap="innerHTML"
+               onclick="this.parentElement.querySelectorAll('.period-btn').forEach(b=>b.classList.remove('active'));this.classList.add('active');">{{ p }}</a>
             {% endfor %}
         </div>
     </div>

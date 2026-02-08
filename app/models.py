@@ -20,6 +20,9 @@ class User(UserMixin, db.Model):
     transactions = db.relationship("Transaction", back_populates="user", lazy="dynamic")
     snapshots = db.relationship("PortfolioSnapshot", back_populates="user", lazy="dynamic")
     alerts = db.relationship("Alert", back_populates="user", lazy="dynamic")
+    notification_preference = db.relationship(
+        "NotificationPreference", back_populates="user", uselist=False
+    )
 
     def set_password(self, password: str):
         self.password_hash = generate_password_hash(password)
@@ -154,6 +157,22 @@ class Alert(db.Model):
 
     user = db.relationship("User", back_populates="alerts")
     ticker = db.relationship("Ticker")
+
+
+# ---------------------------------------------------------------------------
+# Notification Preference
+# ---------------------------------------------------------------------------
+class NotificationPreference(db.Model):
+    __tablename__ = "notification_preferences"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(
+        db.Integer, db.ForeignKey("users.id"), nullable=False, unique=True, index=True
+    )
+    slack_enabled = db.Column(db.Boolean, default=False)
+    slack_webhook_url = db.Column(db.String(500))
+
+    user = db.relationship("User", back_populates="notification_preference")
 
 
 # ---------------------------------------------------------------------------

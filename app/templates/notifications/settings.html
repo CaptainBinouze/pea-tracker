@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Notifications — PEA Tracker{% endblock %}
+
+{% block content %}
+<!-- Page header -->
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Notifications</h1>
+        <p class="page-subtitle">Configurez comment vous souhaitez être alerté</p>
+    </div>
+</div>
+
+<form method="post" action="{{ url_for('notifications.settings') }}">
+    {{ form.hidden_tag() }}
+
+    <!-- Slack section -->
+    <div class="card" style="margin-bottom: var(--space-6);">
+        <div class="card-header flex-between">
+            <div style="display: flex; align-items: center; gap: var(--space-3);">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M14.5 2C13.12 2 12 3.12 12 4.5V9H14.5C15.88 9 17 7.88 17 6.5V4.5C17 3.12 15.88 2 14.5 2Z" fill="#E01E5A"/>
+                    <path d="M5 9.5C5 10.88 6.12 12 7.5 12H9V9.5C9 8.12 7.88 7 6.5 7H7.5H5V9.5Z" fill="#36C5F0"/>
+                    <path d="M9.5 22C10.88 22 12 20.88 12 19.5V15H9.5C8.12 15 7 16.12 7 17.5V19.5C7 20.88 8.12 22 9.5 22Z" fill="#2EB67D"/>
+                    <path d="M19 14.5C19 13.12 17.88 12 16.5 12H15V14.5C15 15.88 16.12 17 17.5 17H16.5H19V14.5Z" fill="#ECB22E"/>
+                </svg>
+                <h3 style="margin: 0;">Slack</h3>
+            </div>
+            <label class="toggle">
+                {{ form.slack_enabled(class="toggle-input") }}
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+        <div class="card-body">
+            <p style="color: var(--text-secondary); margin-bottom: var(--space-4); font-size: var(--text-sm);">
+                Recevez vos alertes directement dans un channel Slack via un
+                <a href="https://api.slack.com/messaging/webhooks" target="_blank" rel="noopener">Incoming Webhook</a>.
+            </p>
+
+            <div class="form-group">
+                <label for="slack_webhook_url">Webhook URL</label>
+                {{ form.slack_webhook_url(id="slack_webhook_url", class="form-input") }}
+                {% if form.slack_webhook_url.errors %}
+                    {% for error in form.slack_webhook_url.errors %}
+                    <small class="form-error">{{ error }}</small>
+                    {% endfor %}
+                {% endif %}
+            </div>
+
+            <details style="margin-top: var(--space-3);">
+                <summary style="cursor: pointer; color: var(--text-secondary); font-size: var(--text-sm);">
+                    Comment obtenir un Webhook URL ?
+                </summary>
+                <ol style="margin-top: var(--space-3); padding-left: var(--space-6); color: var(--text-secondary); font-size: var(--text-sm); line-height: 1.8;">
+                    <li>Allez sur <a href="https://api.slack.com/apps" target="_blank" rel="noopener">api.slack.com/apps</a></li>
+                    <li>Cliquez sur <strong>Create New App</strong> → <strong>From scratch</strong></li>
+                    <li>Nommez l'app (ex: "PEA Tracker") et sélectionnez votre workspace</li>
+                    <li>Dans le menu, allez dans <strong>Incoming Webhooks</strong> et activez-le</li>
+                    <li>Cliquez sur <strong>Add New Webhook to Workspace</strong> et choisissez un channel</li>
+                    <li>Copiez l'URL du webhook et collez-la ci-dessus</li>
+                </ol>
+            </details>
+        </div>
+    </div>
+
+    <button type="submit" class="btn btn-primary">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        Enregistrer
+    </button>
+</form>
+
+
+{% endblock %}

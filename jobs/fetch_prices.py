@@ -47,7 +47,7 @@ def run():
         if triggered:
             print(f"[CRON] {len(triggered)} alert(s) triggered:")
             for a in triggered:
-                print(f"  - {a.ticker.symbol} {a.condition} {a.target_price}")
+                print(f"  - {a['ticker_symbol']} {a['condition']} {a['threshold']}")
         else:
             print("[CRON] No alerts triggered.")
 
