@@ -61,7 +61,9 @@
         {% if active %}<span class="pill pill-accent">{{ active | length }}</span>{% endif %}
     </div>
     <div id="alerts-list">
-        {% include "alerts/partials/alerts_list.html" with context %}
+        {% with alerts=active %}
+            {% include "alerts/partials/alerts_list.html" %}
+        {% endwith %}
     </div>
 </div>
 
