@@ -2,10 +2,13 @@
 Daily price fetcher — scheduled by Railway Cron.
 Usage: python -m jobs.fetch_prices
 Cron schedule: 0 17 * * 1-5  (18h CET, weekdays only)
+
+Deploy as a **separate Cron Job service** on Railway (not inside the web service).
 """
 
 import sys
 import os
+from datetime import date, timedelta
 
 # Add project root to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -16,6 +19,9 @@ from app.models import Ticker, Alert
 from app.market.services import fetch_prices_for_tickers, fetch_dividends_for_tickers, process_backfill_queue
 from app.alerts.services import evaluate_alerts
 
+# How many days back to fetch on each run (covers weekends + missed days)
+LOOKBACK_DAYS = 7
+
 
 def run():
     app = create_app()
@@ -24,21 +30,23 @@ def run():
         print("[CRON] Processing backfill queue...")
         process_backfill_queue()
 
-        # 2. Fetch today's prices for all tickers in use
+        # 2. Fetch recent prices for all tickers in use
         tickers = Ticker.query.all()
         if not tickers:
             print("[CRON] No tickers to update.")
             return
 
+        earliest = date.today() - timedelta(days=LOOKBACK_DAYS)
+        ticker_ids_dates = {t.id: earliest for t in tickers}
         symbols = [t.symbol for t in tickers]
-        print(f"[CRON] Fetching prices for {len(symbols)} tickers: {symbols}")
+        print(f"[CRON] Fetching prices for {len(symbols)} tickers from {earliest}: {symbols}")
 
-        fetch_prices_for_tickers(symbols, period="5d")
-        print("[CRON] Prices updated.")
+        result = fetch_prices_for_tickers(ticker_ids_dates)
+        print(f"[CRON] Prices updated: {result}")
 
         # 3. Fetch dividends
         print("[CRON] Fetching dividends...")
-        fetch_dividends_for_tickers(symbols)
+        fetch_dividends_for_tickers([t.id for t in tickers])
         print("[CRON] Dividends updated.")
 
         # 4. Evaluate price alerts
