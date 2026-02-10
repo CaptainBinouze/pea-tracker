@@ -276,6 +276,59 @@ def compute_snapshots(user_id: int, from_date: Optional[date] = None):
     logger.info("Computed %d snapshots for user %d", len(snapshots_to_upsert), user_id)
 
 
+def ensure_snapshots_uptodate(user_id: int):
+    """
+    Ensure portfolio snapshots are complete from the first transaction to today.
+
+    Detects *all* missing days (gaps in the middle, missing recent days, etc.)
+    and recomputes only from the earliest missing date onward.
+    This is safe to call frequently — it's a no-op when everything is up-to-date.
+    """
+    first_tx = (
+        Transaction.query.filter_by(user_id=user_id)
+        .order_by(Transaction.date)
+        .first()
+    )
+    if not first_tx:
+        return
+
+    first_date = first_tx.date
+    today = date.today()
+    if first_date > today:
+        return
+
+    # All existing snapshot dates for this user
+    existing_dates = set(
+        row[0]
+        for row in db.session.query(PortfolioSnapshot.date)
+        .filter_by(user_id=user_id)
+        .filter(PortfolioSnapshot.date >= first_date)
+        .filter(PortfolioSnapshot.date <= today)
+        .all()
+    )
+
+    # Build the full expected set of dates
+    expected_dates: set[date] = set()
+    current = first_date
+    while current <= today:
+        expected_dates.add(current)
+        current += timedelta(days=1)
+
+    missing = expected_dates - existing_dates
+    if not missing:
+        logger.debug("Snapshots up-to-date for user %d", user_id)
+        return
+
+    earliest_missing = min(missing)
+    logger.info(
+        "Found %d missing snapshot(s) for user %d — earliest gap: %s. Recomputing…",
+        len(missing),
+        user_id,
+        earliest_missing,
+    )
+    compute_snapshots(user_id, from_date=earliest_missing)
+
+
 def get_snapshot_series(user_id: int, period: str = "1Y") -> list[dict]:
     """Return portfolio snapshot series for charting."""
     period_map = {

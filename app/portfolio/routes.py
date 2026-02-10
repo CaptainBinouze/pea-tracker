@@ -10,6 +10,7 @@ from app.models import BackfillQueue, DailyPrice, Dividend, PortfolioSnapshot, T
 from app.portfolio.forms import TransactionForm
 from app.portfolio.services import (
     compute_snapshots,
+    ensure_snapshots_uptodate,
     get_portfolio_summary,
     get_positions,
     get_snapshot_series,
@@ -34,18 +35,9 @@ def dashboard():
     if pending > 0:
         process_backfill_queue()
 
-    # Always ensure snapshots are up-to-date (covers new price data, missed cron runs, etc.)
+    # Ensure all snapshots exist (fills any gaps + today)
     if summary["num_positions"] > 0:
-        from datetime import date as _date, timedelta as _td
-        latest_snap = (
-            PortfolioSnapshot.query
-            .filter_by(user_id=current_user.id)
-            .order_by(PortfolioSnapshot.date.desc())
-            .first()
-        )
-        if not latest_snap or latest_snap.date < _date.today():
-            from_date = latest_snap.date if latest_snap else None
-            compute_snapshots(current_user.id, from_date=from_date)
+        ensure_snapshots_uptodate(current_user.id)
         summary = get_portfolio_summary(current_user.id)
 
     series = get_snapshot_series(current_user.id, request.args.get("period", "1Y"))
@@ -138,6 +130,9 @@ def add_transaction():
 
         # Request backfill if transaction date needs historical data
         request_backfill(ticker.id, form.date.data)
+
+        # Recompute snapshots from the transaction date onward
+        compute_snapshots(current_user.id, from_date=form.date.data)
 
         flash(f"Transaction {'achat' if tx.type == 'BUY' else 'vente'} de {ticker.symbol} enregistrée.", "success")
         return redirect(url_for("portfolio.transactions"))

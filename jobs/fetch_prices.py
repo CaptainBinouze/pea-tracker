@@ -18,7 +18,7 @@ from app.extensions import db
 from app.models import Ticker, Alert, Transaction
 from app.market.services import fetch_prices_for_tickers, fetch_dividends_for_tickers, process_backfill_queue
 from app.alerts.services import evaluate_alerts
-from app.portfolio.services import compute_snapshots
+from app.portfolio.services import compute_snapshots, ensure_snapshots_uptodate
 
 # How many days back to fetch on each run (covers weekends + missed days)
 LOOKBACK_DAYS = 7
@@ -51,10 +51,11 @@ def run():
         print("[CRON] Dividends updated.")
 
         # 4. Recompute portfolio snapshots for all users with transactions
-        print("[CRON] Recomputing portfolio snapshots...")
+        #    Uses ensure_snapshots_uptodate to detect and fill any gaps
+        print("[CRON] Recomputing portfolio snapshots (with gap detection)...")
         user_ids = db.session.query(Transaction.user_id).distinct().all()
         for (uid,) in user_ids:
-            compute_snapshots(uid)
+            ensure_snapshots_uptodate(uid)
         print(f"[CRON] Snapshots recomputed for {len(user_ids)} user(s).")
 
         # 5. Evaluate price alerts
