@@ -31,13 +31,20 @@ def dashboard():
     summary = get_portfolio_summary(current_user.id)
 
     # Check if backfill is needed and auto-trigger
+    backfill_ran = False
     pending = BackfillQueue.query.filter_by(status="PENDING").count()
     if pending > 0:
-        process_backfill_queue()
+        result = process_backfill_queue()
+        backfill_ran = result.get("processed", 0) > 0
 
-    # Ensure all snapshots exist (fills any gaps + today)
+    # Ensure all snapshots are complete and fresh
     if summary["num_positions"] > 0:
-        ensure_snapshots_uptodate(current_user.id)
+        if backfill_ran:
+            # New price data just arrived — force full recompute so snapshots
+            # that were previously calculated with missing prices get corrected.
+            compute_snapshots(current_user.id)
+        else:
+            ensure_snapshots_uptodate(current_user.id)
         summary = get_portfolio_summary(current_user.id)
 
     series = get_snapshot_series(current_user.id, request.args.get("period", "1Y"))
@@ -128,8 +135,9 @@ def add_transaction():
         db.session.add(tx)
         db.session.commit()
 
-        # Request backfill if transaction date needs historical data
+        # Fetch historical prices immediately so snapshots are accurate
         request_backfill(ticker.id, form.date.data)
+        process_backfill_queue()
 
         # Recompute snapshots from the transaction date onward
         compute_snapshots(current_user.id, from_date=form.date.data)

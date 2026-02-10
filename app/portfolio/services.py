@@ -278,11 +278,15 @@ def compute_snapshots(user_id: int, from_date: Optional[date] = None):
 
 def ensure_snapshots_uptodate(user_id: int):
     """
-    Ensure portfolio snapshots are complete from the first transaction to today.
+    Ensure portfolio snapshots are complete from first transaction to today.
 
-    Detects *all* missing days (gaps in the middle, missing recent days, etc.)
-    and recomputes only from the earliest missing date onward.
-    This is safe to call frequently — it's a no-op when everything is up-to-date.
+    - Detects *all* missing days (gaps in the middle) and fills them.
+    - Always recomputes today so the latest prices are reflected.
+    - Does NOT use an arbitrary time window — transaction additions and
+      deletions already trigger compute_snapshots from the relevant date,
+      so this function only needs to handle gaps + today.
+
+    Safe to call frequently — minimal work when everything is up-to-date.
     """
     first_tx = (
         Transaction.query.filter_by(user_id=user_id)
@@ -315,18 +319,17 @@ def ensure_snapshots_uptodate(user_id: int):
         current += timedelta(days=1)
 
     missing = expected_dates - existing_dates
-    if not missing:
-        logger.debug("Snapshots up-to-date for user %d", user_id)
-        return
 
-    earliest_missing = min(missing)
-    logger.info(
-        "Found %d missing snapshot(s) for user %d — earliest gap: %s. Recomputing…",
-        len(missing),
-        user_id,
-        earliest_missing,
-    )
-    compute_snapshots(user_id, from_date=earliest_missing)
+    if missing:
+        earliest_missing = min(missing)
+        logger.info(
+            "Found %d missing snapshot(s) for user %d — earliest gap: %s. Recomputing…",
+            len(missing), user_id, earliest_missing,
+        )
+        compute_snapshots(user_id, from_date=earliest_missing)
+    elif today not in existing_dates or True:
+        # Always refresh today to pick up latest prices from cron / backfill
+        compute_snapshots(user_id, from_date=today)
 
 
 def get_snapshot_series(user_id: int, period: str = "1Y") -> list[dict]:
