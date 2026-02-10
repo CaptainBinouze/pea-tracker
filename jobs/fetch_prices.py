@@ -15,9 +15,10 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app import create_app
 from app.extensions import db
-from app.models import Ticker, Alert
+from app.models import Ticker, Alert, Transaction
 from app.market.services import fetch_prices_for_tickers, fetch_dividends_for_tickers, process_backfill_queue
 from app.alerts.services import evaluate_alerts
+from app.portfolio.services import compute_snapshots
 
 # How many days back to fetch on each run (covers weekends + missed days)
 LOOKBACK_DAYS = 7
@@ -49,7 +50,14 @@ def run():
         fetch_dividends_for_tickers([t.id for t in tickers])
         print("[CRON] Dividends updated.")
 
-        # 4. Evaluate price alerts
+        # 4. Recompute portfolio snapshots for all users with transactions
+        print("[CRON] Recomputing portfolio snapshots...")
+        user_ids = db.session.query(Transaction.user_id).distinct().all()
+        for (uid,) in user_ids:
+            compute_snapshots(uid)
+        print(f"[CRON] Snapshots recomputed for {len(user_ids)} user(s).")
+
+        # 5. Evaluate price alerts
         print("[CRON] Evaluating alerts...")
         triggered = evaluate_alerts()
         if triggered:

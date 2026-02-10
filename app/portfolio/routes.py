@@ -33,15 +33,22 @@ def dashboard():
     pending = BackfillQueue.query.filter_by(status="PENDING").count()
     if pending > 0:
         process_backfill_queue()
-        compute_snapshots(current_user.id)
+
+    # Always ensure snapshots are up-to-date (covers new price data, missed cron runs, etc.)
+    if summary["num_positions"] > 0:
+        from datetime import date as _date, timedelta as _td
+        latest_snap = (
+            PortfolioSnapshot.query
+            .filter_by(user_id=current_user.id)
+            .order_by(PortfolioSnapshot.date.desc())
+            .first()
+        )
+        if not latest_snap or latest_snap.date < _date.today():
+            from_date = latest_snap.date if latest_snap else None
+            compute_snapshots(current_user.id, from_date=from_date)
         summary = get_portfolio_summary(current_user.id)
 
     series = get_snapshot_series(current_user.id, request.args.get("period", "1Y"))
-
-    # If no snapshots yet but user has positions, compute them now
-    if not series and summary["num_positions"] > 0:
-        compute_snapshots(current_user.id)
-        series = get_snapshot_series(current_user.id, request.args.get("period", "1Y"))
 
     # Prepare JSON-serializable position data for the allocation chart
     chart_positions = [
