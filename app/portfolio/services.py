@@ -141,12 +141,12 @@ def get_portfolio_summary(user_id: int) -> dict:
     }
 
 
-def _compute_total_dividends(user_id: int, ticker_ids: list[int]) -> float:
+def _compute_total_dividends(user_id: int, ticker_ids: list[int]) -> Decimal:
     """Compute total dividends received based on holdings at each ex-date."""
     if not ticker_ids:
-        return 0.0
+        return Decimal(0)
 
-    total = 0.0
+    total = Decimal(0)
     dividends = Dividend.query.filter(Dividend.ticker_id.in_(ticker_ids)).all()
 
     for div in dividends:
@@ -165,7 +165,7 @@ def _compute_total_dividends(user_id: int, ticker_ids: list[int]) -> float:
             .scalar()
         )
         if qty_at_date > 0:
-            total += float(qty_at_date * div.amount_per_share)
+            total += qty_at_date * div.amount_per_share
 
     return total
 
