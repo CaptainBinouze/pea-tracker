@@ -165,7 +165,7 @@ def _compute_total_dividends(user_id: int, ticker_ids: list[int]) -> float:
             .scalar()
         )
         if qty_at_date > 0:
-            total += qty_at_date * div.amount_per_share
+            total += float(qty_at_date * div.amount_per_share)
 
     return total
 
