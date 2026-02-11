@@ -5,6 +5,7 @@ Portfolio services — P&L calculations, positions, snapshots.
 import logging
 from collections import defaultdict
 from datetime import date, timedelta
+from decimal import Decimal
 from typing import Optional
 
 from sqlalchemy import func
@@ -32,10 +33,10 @@ def get_positions(user_id: int) -> list[dict]:
 
     # Aggregate by ticker
     holdings: dict[int, dict] = defaultdict(lambda: {
-        "qty": 0.0,
-        "total_cost": 0.0,
-        "total_sold": 0.0,
-        "realized_pnl": 0.0,
+        "qty": Decimal(0),
+        "total_cost": Decimal(0),
+        "total_sold": Decimal(0),
+        "realized_pnl": Decimal(0),
     })
 
     for tx in transactions:
@@ -52,10 +53,10 @@ def get_positions(user_id: int) -> list[dict]:
 
     # Build position list with current prices
     positions = []
-    total_portfolio_value = 0.0
+    total_portfolio_value = Decimal(0)
 
     for ticker_id, h in holdings.items():
-        if h["qty"] <= 0.001:
+        if h["qty"] <= Decimal("0.0001"):
             continue
 
         ticker = db.session.get(Ticker, ticker_id)

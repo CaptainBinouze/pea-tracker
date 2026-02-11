@@ -1,5 +1,7 @@
+from decimal import Decimal
+
 from flask_wtf import FlaskForm
-from wtforms import FloatField, SelectField, StringField, SubmitField
+from wtforms import DecimalField, SelectField, StringField, SubmitField
 from wtforms.validators import DataRequired, NumberRange
 
 
@@ -14,8 +16,9 @@ class AlertForm(FlaskForm):
         choices=[("ABOVE", "Au-dessus de"), ("BELOW", "En-dessous de")],
         validators=[DataRequired()],
     )
-    threshold_price = FloatField(
+    threshold_price = DecimalField(
         "Prix seuil (€)",
-        validators=[DataRequired(), NumberRange(min=0.01)],
+        places=4,
+        validators=[DataRequired(), NumberRange(min=Decimal("0.0001"))],
     )
     submit = SubmitField("Créer l'alerte")

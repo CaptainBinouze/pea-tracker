@@ -7,6 +7,7 @@ import os
 import shutil
 import tempfile
 from datetime import date, datetime, timedelta
+from decimal import Decimal
 from typing import Optional
 
 import requests as _requests_lib
@@ -186,19 +187,19 @@ def fetch_prices_for_tickers(
                 ).first()
 
                 if existing:
-                    existing.open = _safe_float(row.get("Open"))
-                    existing.high = _safe_float(row.get("High"))
-                    existing.low = _safe_float(row.get("Low"))
-                    existing.close = _safe_float(row.get("Close"))
+                    existing.open = _safe_decimal(row.get("Open"))
+                    existing.high = _safe_decimal(row.get("High"))
+                    existing.low = _safe_decimal(row.get("Low"))
+                    existing.close = _safe_decimal(row.get("Close"))
                     existing.volume = _safe_int(row.get("Volume"))
                 else:
                     dp = DailyPrice(
                         ticker_id=ticker_id,
                         date=price_date,
-                        open=_safe_float(row.get("Open")),
-                        high=_safe_float(row.get("High")),
-                        low=_safe_float(row.get("Low")),
-                        close=_safe_float(row.get("Close")),
+                        open=_safe_decimal(row.get("Open")),
+                        high=_safe_decimal(row.get("High")),
+                        low=_safe_decimal(row.get("Low")),
+                        close=_safe_decimal(row.get("Close")),
                         volume=_safe_int(row.get("Volume")),
                     )
                     db.session.add(dp)
@@ -230,7 +231,7 @@ def fetch_dividends_for_tickers(ticker_ids: list[int]):
                 existing = Dividend.query.filter_by(ticker_id=t.id, date=d).first()
                 if not existing and amount > 0:
                     db.session.add(
-                        Dividend(ticker_id=t.id, date=d, amount_per_share=float(amount))
+                        Dividend(ticker_id=t.id, date=d, amount_per_share=Decimal(str(float(amount))))
                     )
         except Exception as e:
             logger.warning("Dividend fetch failed for %s: %s", t.symbol, e)
@@ -316,10 +317,14 @@ def process_backfill_queue() -> dict:
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _safe_float(val) -> Optional[float]:
+def _safe_decimal(val) -> Optional[Decimal]:
     try:
+        if val is None:
+            return None
         f = float(val)
-        return None if f != f else f  # NaN check
+        if f != f:  # NaN check
+            return None
+        return Decimal(str(f))
     except (TypeError, ValueError):
         return None
 

@@ -1,7 +1,9 @@
+from decimal import Decimal
+
 from flask_wtf import FlaskForm
 from wtforms import (
     DateField,
-    FloatField,
+    DecimalField,
     HiddenField,
     SelectField,
     StringField,
@@ -24,14 +26,16 @@ class TransactionForm(FlaskForm):
         validators=[DataRequired()],
     )
     date = DateField("Date", validators=[DataRequired()])
-    quantity = FloatField(
+    quantity = DecimalField(
         "Quantité",
-        validators=[DataRequired(), NumberRange(min=0.0001, message="Quantité positive requise")],
+        places=4,
+        validators=[DataRequired(), NumberRange(min=Decimal("0.0001"), message="Quantité positive requise")],
     )
-    price_per_share = FloatField(
+    price_per_share = DecimalField(
         "Prix par action (€)",
-        validators=[DataRequired(), NumberRange(min=0.01)],
+        places=4,
+        validators=[DataRequired(), NumberRange(min=Decimal("0.0001"))],
     )
-    fees = FloatField("Frais (€)", default=0.0, validators=[Optional(), NumberRange(min=0)])
+    fees = DecimalField("Frais (€)", places=4, default=Decimal("0"), validators=[Optional(), NumberRange(min=0)])
     notes = TextAreaField("Notes", validators=[Optional()])
     submit = SubmitField("Enregistrer")

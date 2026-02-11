@@ -1,4 +1,5 @@
 from datetime import date, datetime
+from decimal import Decimal
 
 from flask_login import UserMixin
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -63,9 +64,9 @@ class Transaction(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
     ticker_id = db.Column(db.Integer, db.ForeignKey("tickers.id"), nullable=False, index=True)
     type = db.Column(db.String(4), nullable=False)  # BUY or SELL
-    quantity = db.Column(db.Float, nullable=False)
-    price_per_share = db.Column(db.Float, nullable=False)
-    fees = db.Column(db.Float, default=0.0)
+    quantity = db.Column(db.Numeric(16, 4), nullable=False)
+    price_per_share = db.Column(db.Numeric(16, 4), nullable=False)
+    fees = db.Column(db.Numeric(16, 4), default=0)
     date = db.Column(db.Date, nullable=False)
     notes = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -74,7 +75,7 @@ class Transaction(db.Model):
     ticker = db.relationship("Ticker", back_populates="transactions")
 
     @property
-    def total_cost(self) -> float:
+    def total_cost(self) -> Decimal:
         """Total cost including fees."""
         if self.type == "BUY":
             return self.quantity * self.price_per_share + self.fees
@@ -93,10 +94,10 @@ class DailyPrice(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     ticker_id = db.Column(db.Integer, db.ForeignKey("tickers.id"), nullable=False, index=True)
     date = db.Column(db.Date, nullable=False, index=True)
-    open = db.Column(db.Float)
-    high = db.Column(db.Float)
-    low = db.Column(db.Float)
-    close = db.Column(db.Float)
+    open = db.Column(db.Numeric(16, 4))
+    high = db.Column(db.Numeric(16, 4))
+    low = db.Column(db.Numeric(16, 4))
+    close = db.Column(db.Numeric(16, 4))
     volume = db.Column(db.BigInteger)
 
     ticker = db.relationship("Ticker", back_populates="daily_prices")
@@ -114,7 +115,7 @@ class Dividend(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     ticker_id = db.Column(db.Integer, db.ForeignKey("tickers.id"), nullable=False, index=True)
     date = db.Column(db.Date, nullable=False)
-    amount_per_share = db.Column(db.Float, nullable=False)
+    amount_per_share = db.Column(db.Numeric(16, 6), nullable=False)
 
     ticker = db.relationship("Ticker", back_populates="dividends")
 
@@ -131,10 +132,10 @@ class PortfolioSnapshot(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
     date = db.Column(db.Date, nullable=False)
-    total_value = db.Column(db.Float, default=0.0)
-    total_invested = db.Column(db.Float, default=0.0)
-    total_pnl = db.Column(db.Float, default=0.0)
-    total_pnl_pct = db.Column(db.Float, default=0.0)
+    total_value = db.Column(db.Numeric(16, 2), default=0)
+    total_invested = db.Column(db.Numeric(16, 2), default=0)
+    total_pnl = db.Column(db.Numeric(16, 2), default=0)
+    total_pnl_pct = db.Column(db.Numeric(8, 4), default=0)
 
     user = db.relationship("User", back_populates="snapshots")
 
@@ -149,7 +150,7 @@ class Alert(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
     ticker_id = db.Column(db.Integer, db.ForeignKey("tickers.id"), nullable=False)
     condition = db.Column(db.String(10), nullable=False)  # ABOVE or BELOW
-    threshold_price = db.Column(db.Float, nullable=False)
+    threshold_price = db.Column(db.Numeric(16, 4), nullable=False)
     is_active = db.Column(db.Boolean, default=True)
     triggered = db.Column(db.Boolean, default=False)
     last_triggered_at = db.Column(db.DateTime)

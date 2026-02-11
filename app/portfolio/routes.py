@@ -1,4 +1,5 @@
 from datetime import date as date_type
+from decimal import Decimal
 
 from flask import Blueprint, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
@@ -128,7 +129,7 @@ def add_transaction():
             type=form.type.data,
             quantity=form.quantity.data,
             price_per_share=form.price_per_share.data,
-            fees=form.fees.data or 0.0,
+            fees=form.fees.data or Decimal(0),
             date=form.date.data,
             notes=form.notes.data,
         )
