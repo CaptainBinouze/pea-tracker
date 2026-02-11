@@ -43,8 +43,8 @@ def evaluate_alerts() -> list[dict]:
                 "alert_id": alert.id,
                 "ticker_symbol": alert.ticker.symbol,
                 "condition": alert.condition,
-                "threshold": alert.threshold_price,
-                "current_price": latest.close,
+                "threshold": float(alert.threshold_price),
+                "current_price": float(latest.close),
             }
             triggered.append(alert_data)
 

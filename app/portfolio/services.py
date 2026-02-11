@@ -387,10 +387,10 @@ def get_snapshot_series(user_id: int, period: str = "1Y") -> list[dict]:
     return [
         {
             "date": s.date.isoformat(),
-            "value": round(s.total_value, 2),
-            "invested": round(s.total_invested, 2),
-            "pnl": round(s.total_pnl, 2),
-            "pnl_pct": round(s.total_pnl_pct, 2),
+            "value": float(round(s.total_value, 2)),
+            "invested": float(round(s.total_invested, 2)),
+            "pnl": float(round(s.total_pnl, 2)),
+            "pnl_pct": float(round(s.total_pnl_pct, 2)),
         }
         for s in snapshots
     ]

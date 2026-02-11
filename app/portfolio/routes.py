@@ -52,7 +52,7 @@ def dashboard():
 
     # Prepare JSON-serializable position data for the allocation chart
     chart_positions = [
-        {"symbol": p["ticker"].symbol, "weight": p["weight"]}
+        {"symbol": p["ticker"].symbol, "weight": float(p["weight"])}
         for p in summary["positions"]
     ]
 
@@ -203,10 +203,10 @@ def position_detail(symbol):
     price_data = [
         {
             "time": p.date.isoformat(),
-            "open": p.open,
-            "high": p.high,
-            "low": p.low,
-            "close": p.close,
+            "open": float(p.open),
+            "high": float(p.high),
+            "low": float(p.low),
+            "close": float(p.close),
         }
         for p in prices
         if p.open and p.high and p.low and p.close

@@ -1,11 +1,26 @@
+from decimal import Decimal
+
 from flask import Flask
+from flask.json.provider import DefaultJSONProvider
 
 from app.config import Config
 from app.extensions import csrf, db, limiter, login_manager, migrate
 
 
+class _DecimalJSONProvider(DefaultJSONProvider):
+    """Serialize Decimal values as float so tojson works transparently."""
+
+    @staticmethod
+    def default(o):
+        if isinstance(o, Decimal):
+            return float(o)
+        return DefaultJSONProvider.default(o)
+
+
 def create_app(config_class=Config):
     app = Flask(__name__)
+    app.json_provider_class = _DecimalJSONProvider
+    app.json = _DecimalJSONProvider(app)
     app.config.from_object(config_class)
 
     # Initialize extensions
