@@ -205,15 +205,15 @@ def compute_snapshots(user_id: int, from_date: Optional[date] = None):
         .all()
     )
 
-    # Build price lookup: {(ticker_id, date): close}
-    price_map: dict[tuple[int, date], float] = {}
+    # Build price lookup: {(ticker_id, date): Decimal}
+    price_map: dict[tuple[int, date], Decimal] = {}
     for p in prices_query:
         price_map[(p.ticker_id, p.date)] = p.close
 
     # Pre-seed LOCF: fetch the most recent close price BEFORE start for
     # each ticker so that single-day recomputes (e.g. from_date=today when
     # no DailyPrice exists yet for today) don't default to 0.
-    last_known_price: dict[int, float] = {}
+    last_known_price: dict[int, Decimal] = {}
     if all_ticker_ids:
         from sqlalchemy import func, and_
 
@@ -258,10 +258,10 @@ def compute_snapshots(user_id: int, from_date: Optional[date] = None):
                 last_known_price[tid] = price_map[key]
 
         # Compute holdings at this date
-        total_value = 0.0
-        total_invested = 0.0
+        total_value = Decimal(0)
+        total_invested = Decimal(0)
 
-        holdings: dict[int, dict] = defaultdict(lambda: {"qty": 0.0, "cost": 0.0})
+        holdings: dict[int, dict] = defaultdict(lambda: {"qty": Decimal(0), "cost": Decimal(0)})
         for tx in transactions:
             if tx.date > current:
                 break
@@ -278,7 +278,7 @@ def compute_snapshots(user_id: int, from_date: Optional[date] = None):
         for tid, h in holdings.items():
             if h["qty"] > 0:
                 total_invested += h["cost"]
-                price = last_known_price.get(tid, 0)
+                price = last_known_price.get(tid, Decimal(0))
                 total_value += h["qty"] * price
 
         total_pnl = total_value - total_invested
