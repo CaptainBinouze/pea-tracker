@@ -210,9 +210,44 @@ def compute_snapshots(user_id: int, from_date: Optional[date] = None):
     for p in prices_query:
         price_map[(p.ticker_id, p.date)] = p.close
 
+    # Pre-seed LOCF: fetch the most recent close price BEFORE start for
+    # each ticker so that single-day recomputes (e.g. from_date=today when
+    # no DailyPrice exists yet for today) don't default to 0.
+    last_known_price: dict[int, float] = {}
+    if all_ticker_ids:
+        from sqlalchemy import func, and_
+
+        # Subquery: latest date < start per ticker
+        latest_sub = (
+            db.session.query(
+                DailyPrice.ticker_id,
+                func.max(DailyPrice.date).label("max_date"),
+            )
+            .filter(
+                DailyPrice.ticker_id.in_(all_ticker_ids),
+                DailyPrice.date < start,
+            )
+            .group_by(DailyPrice.ticker_id)
+            .subquery()
+        )
+
+        seed_prices = (
+            db.session.query(DailyPrice.ticker_id, DailyPrice.close)
+            .join(
+                latest_sub,
+                and_(
+                    DailyPrice.ticker_id == latest_sub.c.ticker_id,
+                    DailyPrice.date == latest_sub.c.max_date,
+                ),
+            )
+            .all()
+        )
+
+        for tid, close in seed_prices:
+            last_known_price[tid] = close
+
     # Iterate day by day
     current = start
-    last_known_price: dict[int, float] = {}
     snapshots_to_upsert = []
 
     while current <= end:
