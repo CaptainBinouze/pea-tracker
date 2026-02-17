@@ -74,7 +74,10 @@
                 {{ form.notes(id="notes", rows="2", placeholder="Notes optionnelles...") }}
             </div>
 
-            <input type="submit" value="Enregistrer la transaction">
+            <button type="submit" id="submit-tx-btn" class="btn btn-primary btn-block">
+                <span class="spinner-sm" id="submit-spinner" style="display:none; flex-shrink:0;"></span>
+                <span id="submit-btn-text">Enregistrer la transaction</span>
+            </button>
         </form>
     </div>
 </div>
@@ -112,6 +115,15 @@ document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
         document.getElementById('tx-modal').classList.remove('active');
     }
+});
+// Loading state on form submit
+document.querySelector('#tx-modal form').addEventListener('submit', function() {
+    const btn = document.getElementById('submit-tx-btn');
+    const spinner = document.getElementById('submit-spinner');
+    const text = document.getElementById('submit-btn-text');
+    btn.disabled = true;
+    spinner.style.display = 'inline-block';
+    text.textContent = 'Enregistrement…';
 });
 </script>
 {% endblock %}

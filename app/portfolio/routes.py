@@ -1,7 +1,8 @@
+import threading
 from datetime import date as date_type
 from decimal import Decimal
 
-from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask import Blueprint, current_app, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from sqlalchemy import func as sqlfunc
 
@@ -20,6 +21,30 @@ from app.portfolio.services import (
 portfolio_bp = Blueprint(
     "portfolio", __name__, url_prefix="/portfolio", template_folder="../templates/portfolio"
 )
+
+
+# ---------------------------------------------------------------------------
+# Background workers
+# ---------------------------------------------------------------------------
+
+def _background_add(app, ticker_id, tx_date, user_id):
+    """Run backfill + snapshot computation in a background thread."""
+    with app.app_context():
+        try:
+            request_backfill(ticker_id, tx_date)
+            process_backfill_queue()
+            compute_snapshots(user_id, from_date=tx_date)
+        except Exception as e:
+            app.logger.error(f"[background_add] Error: {e}")
+
+
+def _background_delete(app, user_id, tx_date):
+    """Recompute snapshots after deletion in a background thread."""
+    with app.app_context():
+        try:
+            compute_snapshots(user_id, from_date=tx_date)
+        except Exception as e:
+            app.logger.error(f"[background_delete] Error: {e}")
 
 
 # ---------------------------------------------------------------------------
@@ -136,14 +161,19 @@ def add_transaction():
         db.session.add(tx)
         db.session.commit()
 
-        # Fetch historical prices immediately so snapshots are accurate
-        request_backfill(ticker.id, form.date.data)
-        process_backfill_queue()
+        # Run heavy operations (backfill + snapshots) in a background thread
+        app = current_app._get_current_object()
+        threading.Thread(
+            target=_background_add,
+            args=(app, ticker.id, form.date.data, current_user.id),
+            daemon=True,
+        ).start()
 
-        # Recompute snapshots from the transaction date onward
-        compute_snapshots(current_user.id, from_date=form.date.data)
-
-        flash(f"Transaction {'achat' if tx.type == 'BUY' else 'vente'} de {ticker.symbol} enregistrée.", "success")
+        flash(
+            f"Transaction {'achat' if tx.type == 'BUY' else 'vente'} de {ticker.symbol} enregistrée. "
+            "Les données du portfolio se mettent à jour en arrière-plan.",
+            "success",
+        )
         return redirect(url_for("portfolio.transactions"))
 
     for field, errors in form.errors.items():
@@ -160,8 +190,13 @@ def delete_transaction(tx_id):
     db.session.delete(tx)
     db.session.commit()
 
-    # Recompute snapshots from deleted transaction date
-    compute_snapshots(current_user.id, from_date=tx_date)
+    # Recompute snapshots in background
+    app = current_app._get_current_object()
+    threading.Thread(
+        target=_background_delete,
+        args=(app, current_user.id, tx_date),
+        daemon=True,
+    ).start()
 
     flash("Transaction supprimée.", "success")
 
