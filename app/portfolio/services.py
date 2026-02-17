@@ -20,10 +20,11 @@ logger = logging.getLogger(__name__)
 # Positions & P&L
 # ---------------------------------------------------------------------------
 
-def get_positions(user_id: int) -> list[dict]:
+def _compute_holdings(user_id: int) -> dict[int, dict]:
     """
-    Compute current positions for a user.
-    Returns list of dicts with: ticker info, quantity, PRU, current price, P&L, weight.
+    Compute per-ticker aggregates (qty, cost, realized PnL) for ALL tickers,
+    including fully closed positions.  Used by both get_positions() and
+    get_portfolio_summary() so the transaction loop runs only once per call.
     """
     transactions = (
         Transaction.query.filter_by(user_id=user_id)
@@ -31,11 +32,9 @@ def get_positions(user_id: int) -> list[dict]:
         .all()
     )
 
-    # Aggregate by ticker
     holdings: dict[int, dict] = defaultdict(lambda: {
         "qty": Decimal(0),
         "total_cost": Decimal(0),
-        "total_sold": Decimal(0),
         "realized_pnl": Decimal(0),
     })
 
@@ -46,10 +45,20 @@ def get_positions(user_id: int) -> list[dict]:
             h["qty"] += tx.quantity
         elif tx.type == "SELL":
             if h["qty"] > 0:
-                pru = h["total_cost"] / h["qty"] if h["qty"] else 0
+                pru = h["total_cost"] / h["qty"]
                 h["realized_pnl"] += (tx.price_per_share - pru) * tx.quantity - tx.fees
                 h["total_cost"] -= pru * tx.quantity
                 h["qty"] -= tx.quantity
+
+    return holdings
+
+
+def get_positions(user_id: int) -> list[dict]:
+    """
+    Compute current positions for a user.
+    Returns list of dicts with: ticker info, quantity, PRU, current price, P&L, weight.
+    """
+    holdings = _compute_holdings(user_id)
 
     # Build position list with current prices
     positions = []
@@ -121,12 +130,17 @@ def get_portfolio_summary(user_id: int) -> dict:
     total_value = sum(p["market_value"] for p in positions)
     total_invested = sum(p["invested"] for p in positions)
     total_unrealized = sum(p["unrealized_pnl"] for p in positions)
-    total_realized = sum(p["realized_pnl"] for p in positions)
     total_pnl_pct = ((total_value / total_invested) - 1) * 100 if total_invested > 0 else 0
 
-    # Total dividends received
-    ticker_ids = [p["ticker"].id for p in positions]
-    total_dividends = _compute_total_dividends(user_id, ticker_ids)
+    # Sum realized PnL across ALL tickers (including fully closed positions).
+    # get_positions() only returns open positions, so we must use _compute_holdings()
+    # directly to avoid silently dropping realized gains/losses on closed positions.
+    all_holdings = _compute_holdings(user_id)
+    total_realized = sum(h["realized_pnl"] for h in all_holdings.values())
+
+    # Dividends — include all tickers the user ever traded, not just open ones
+    all_ticker_ids = list(all_holdings.keys())
+    total_dividends = _compute_total_dividends(user_id, all_ticker_ids)
 
     return {
         "positions": positions,
