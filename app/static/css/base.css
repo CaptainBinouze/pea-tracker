@@ -177,11 +177,34 @@ textarea {
 }
 
 .btn-danger {
-    background: transparent;
-    color: var(--text-secondary);
+    background: var(--negative-bg);
+    color: var(--negative);
 }
 
 .btn-danger:hover {
+    background: var(--negative);
+    color: #fff;
+}
+
+.btn-delete {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    min-height: 32px;
+    padding: 0;
+    font-size: 16px;
+    line-height: 1;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.btn-delete:hover {
     background: var(--negative-bg);
     color: var(--negative);
 }
