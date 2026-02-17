@@ -73,7 +73,7 @@ def dashboard():
             ensure_snapshots_uptodate(current_user.id)
         summary = get_portfolio_summary(current_user.id)
 
-    series = get_snapshot_series(current_user.id, request.args.get("period", "1Y"))
+    series = get_snapshot_series(current_user.id, request.args.get("period", "1M"))
 
     # Prepare JSON-serializable position data for the allocation chart
     chart_positions = [
@@ -85,7 +85,7 @@ def dashboard():
         "dashboard.html",
         summary=summary,
         series=series,
-        period=request.args.get("period", "1Y"),
+        period=request.args.get("period", "1M"),
         chart_positions=chart_positions,
     )
 
@@ -102,7 +102,7 @@ def dashboard_positions():
 @login_required
 def dashboard_chart():
     """HTMX partial — portfolio evolution chart data."""
-    period = request.args.get("period", "1Y")
+    period = request.args.get("period", "1M")
     series = get_snapshot_series(current_user.id, period)
     return render_template("partials/portfolio_chart.html", series=series, period=period)
 

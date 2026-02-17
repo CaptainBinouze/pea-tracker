@@ -172,7 +172,17 @@
         wickDownColor: '#FF4D6A',
     });
     candleSeries.setData(priceData);
-    chart.timeScale().fitContent();
+
+    // Default view: last 3 months, but full history remains navigable
+    if (priceData.length > 0) {
+        const lastDate = new Date(priceData[priceData.length - 1].time);
+        const fromDate = new Date(lastDate);
+        fromDate.setMonth(fromDate.getMonth() - 3);
+        const toISO = d => d.toISOString().slice(0, 10);
+        chart.timeScale().setVisibleRange({ from: toISO(fromDate), to: toISO(lastDate) });
+    } else {
+        chart.timeScale().fitContent();
+    }
 
     const ro = new ResizeObserver(entries => {
         chart.applyOptions({ width: entries[0].contentRect.width });
