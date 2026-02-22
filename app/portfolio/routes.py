@@ -2,7 +2,7 @@ import threading
 from datetime import date as date_type
 from decimal import Decimal
 
-from flask import Blueprint, current_app, flash, redirect, render_template, request, url_for
+from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from sqlalchemy import func as sqlfunc
 
@@ -17,6 +17,7 @@ from app.portfolio.services import (
     get_positions,
     get_snapshot_series,
 )
+from app.tasks import run_backfill_async
 
 portfolio_bp = Blueprint(
     "portfolio", __name__, url_prefix="/portfolio", template_folder="../templates/portfolio"
@@ -54,24 +55,14 @@ def _background_delete(app, user_id, tx_date):
 @portfolio_bp.route("/dashboard")
 @login_required
 def dashboard():
-    summary = get_portfolio_summary(current_user.id)
-
-    # Check if backfill is needed and auto-trigger
-    backfill_ran = False
+    # If there are pending backfills, kick them off asynchronously
+    # instead of blocking the page render.
     pending = BackfillQueue.query.filter_by(status="PENDING").count()
+    processing = BackfillQueue.query.filter_by(status="PROCESSING").count()
     if pending > 0:
-        result = process_backfill_queue()
-        backfill_ran = result.get("processed", 0) > 0
+        run_backfill_async(current_app._get_current_object())
 
-    # Ensure all snapshots are complete and fresh
-    if summary["num_positions"] > 0:
-        if backfill_ran:
-            # New price data just arrived — force full recompute so snapshots
-            # that were previously calculated with missing prices get corrected.
-            compute_snapshots(current_user.id)
-        else:
-            ensure_snapshots_uptodate(current_user.id)
-        summary = get_portfolio_summary(current_user.id)
+    summary = get_portfolio_summary(current_user.id)
 
     series = get_snapshot_series(current_user.id, request.args.get("period", "1M"))
 
@@ -87,7 +78,17 @@ def dashboard():
         series=series,
         period=request.args.get("period", "1M"),
         chart_positions=chart_positions,
+        backfill_pending=(pending + processing) > 0,
     )
+
+
+@portfolio_bp.route("/dashboard/backfill-status")
+@login_required
+def backfill_status():
+    """AJAX polling endpoint — returns current backfill queue status as JSON."""
+    pending = BackfillQueue.query.filter_by(status="PENDING").count()
+    processing = BackfillQueue.query.filter_by(status="PROCESSING").count()
+    return jsonify({"pending": pending, "processing": processing, "done": (pending + processing) == 0})
 
 
 @portfolio_bp.route("/dashboard/positions")

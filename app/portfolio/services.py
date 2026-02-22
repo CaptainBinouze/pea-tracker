@@ -53,42 +53,81 @@ def _compute_holdings(user_id: int) -> dict[int, dict]:
     return holdings
 
 
-def get_positions(user_id: int) -> list[dict]:
+def get_positions(user_id: int, *, _holdings: dict | None = None) -> list[dict]:
     """
     Compute current positions for a user.
     Returns list of dicts with: ticker info, quantity, PRU, current price, P&L, weight.
-    """
-    holdings = _compute_holdings(user_id)
 
-    # Build position list with current prices
+    If *_holdings* is supplied (from a prior ``_compute_holdings`` call) it is
+    reused instead of re-querying all transactions.
+    """
+    holdings = _holdings if _holdings is not None else _compute_holdings(user_id)
+
+    # Filter to open positions
+    open_tids = [tid for tid, h in holdings.items() if h["qty"] > Decimal("0.0001")]
+    if not open_tids:
+        return []
+
+    # --- Batch-fetch tickers -------------------------------------------------
+    tickers_list = Ticker.query.filter(Ticker.id.in_(open_tids)).all()
+    tickers_map: dict[int, Ticker] = {t.id: t for t in tickers_list}
+
+    # --- Batch-fetch latest 2 prices per ticker (cross-DB compatible) ------
+    from sqlalchemy import literal_column
+    from sqlalchemy.orm import aliased
+
+    # Subquery: rank prices per ticker by date descending
+    ranked = (
+        db.session.query(
+            DailyPrice.ticker_id,
+            DailyPrice.date,
+            DailyPrice.close,
+            func.row_number()
+            .over(
+                partition_by=DailyPrice.ticker_id,
+                order_by=DailyPrice.date.desc(),
+            )
+            .label("rn"),
+        )
+        .filter(DailyPrice.ticker_id.in_(open_tids))
+        .subquery()
+    )
+
+    price_rows = (
+        db.session.query(
+            ranked.c.ticker_id,
+            ranked.c.date,
+            ranked.c.close,
+            ranked.c.rn,
+        )
+        .filter(ranked.c.rn <= 2)
+        .all()
+    )
+
+    # Build lookup: ticker_id -> {"latest": (close, date), "prev": close}
+    price_lookup: dict[int, dict] = {}
+    for tid, dt, close_val, rn in price_rows:
+        entry = price_lookup.setdefault(tid, {})
+        if rn == 1:
+            entry["latest_close"] = close_val
+            entry["latest_date"] = dt
+        elif rn == 2:
+            entry["prev_close"] = close_val
+
+    # --- Build position list -------------------------------------------------
     positions = []
     total_portfolio_value = Decimal(0)
 
-    for ticker_id, h in holdings.items():
-        if h["qty"] <= Decimal("0.0001"):
-            continue
-
-        ticker = db.session.get(Ticker, ticker_id)
+    for ticker_id in open_tids:
+        h = holdings[ticker_id]
+        ticker = tickers_map.get(ticker_id)
         if not ticker:
             continue
 
-        # Get latest price
-        latest_price_row = (
-            DailyPrice.query.filter_by(ticker_id=ticker_id)
-            .order_by(DailyPrice.date.desc())
-            .first()
-        )
-        current_price = latest_price_row.close if latest_price_row else None
-        price_date = latest_price_row.date if latest_price_row else None
-
-        # Get previous close for daily change
-        prev_price_row = (
-            DailyPrice.query.filter_by(ticker_id=ticker_id)
-            .filter(DailyPrice.date < price_date)
-            .order_by(DailyPrice.date.desc())
-            .first()
-        ) if price_date else None
-        prev_close = prev_price_row.close if prev_price_row else current_price
+        prices = price_lookup.get(ticker_id, {})
+        current_price = prices.get("latest_close")
+        price_date = prices.get("latest_date")
+        prev_close = prices.get("prev_close", current_price)
 
         pru = h["total_cost"] / h["qty"] if h["qty"] > 0 else 0
         market_value = h["qty"] * current_price if current_price else 0
@@ -124,8 +163,15 @@ def get_positions(user_id: int) -> list[dict]:
 
 
 def get_portfolio_summary(user_id: int) -> dict:
-    """Compute portfolio-level summary metrics."""
-    positions = get_positions(user_id)
+    """Compute portfolio-level summary metrics.
+
+    Internally calls ``_compute_holdings`` **once** and reuses the result
+    for both ``get_positions`` and the realized-PnL / dividend totals.
+    """
+    # Single holdings computation — shared across positions and PnL
+    all_holdings = _compute_holdings(user_id)
+
+    positions = get_positions(user_id, _holdings=all_holdings)
 
     total_value = sum(p["market_value"] for p in positions)
     total_invested = sum(p["invested"] for p in positions)
@@ -133,9 +179,6 @@ def get_portfolio_summary(user_id: int) -> dict:
     total_pnl_pct = ((total_value / total_invested) - 1) * 100 if total_invested > 0 else 0
 
     # Sum realized PnL across ALL tickers (including fully closed positions).
-    # get_positions() only returns open positions, so we must use _compute_holdings()
-    # directly to avoid silently dropping realized gains/losses on closed positions.
-    all_holdings = _compute_holdings(user_id)
     total_realized = sum(h["realized_pnl"] for h in all_holdings.values())
 
     # Dividends — include all tickers the user ever traded, not just open ones
@@ -156,30 +199,64 @@ def get_portfolio_summary(user_id: int) -> dict:
 
 
 def _compute_total_dividends(user_id: int, ticker_ids: list[int]) -> Decimal:
-    """Compute total dividends received based on holdings at each ex-date."""
+    """Compute total dividends received based on holdings at each ex-date.
+
+    Uses an in-memory approach: loads all transactions and dividends in two
+    queries, then computes holdings at each ex-date in Python.  This avoids
+    the previous N+1 pattern (one sub-query per dividend row).
+    """
     if not ticker_ids:
         return Decimal(0)
 
-    total = Decimal(0)
-    dividends = Dividend.query.filter(Dividend.ticker_id.in_(ticker_ids)).all()
-
-    for div in dividends:
-        qty_at_date = (
-            db.session.query(func.coalesce(func.sum(
-                db.case(
-                    (Transaction.type == "BUY", Transaction.quantity),
-                    else_=-Transaction.quantity,
-                )
-            ), 0))
-            .filter(
-                Transaction.user_id == user_id,
-                Transaction.ticker_id == div.ticker_id,
-                Transaction.date <= div.date,
-            )
-            .scalar()
+    # 1. Load all relevant transactions (sorted by date)
+    transactions = (
+        Transaction.query
+        .filter(
+            Transaction.user_id == user_id,
+            Transaction.ticker_id.in_(ticker_ids),
         )
-        if qty_at_date > 0:
-            total += qty_at_date * div.amount_per_share
+        .order_by(Transaction.date)
+        .all()
+    )
+
+    # 2. Load all dividends for these tickers
+    dividends = (
+        Dividend.query
+        .filter(Dividend.ticker_id.in_(ticker_ids))
+        .order_by(Dividend.date)
+        .all()
+    )
+
+    if not dividends:
+        return Decimal(0)
+
+    # 3. Pre-compute cumulative holdings per ticker at each transaction date
+    #    ticker_id -> sorted list of (date, cumulative_qty)
+    from bisect import bisect_right
+
+    cum_holdings: dict[int, list[tuple]] = defaultdict(list)
+    running: dict[int, Decimal] = defaultdict(Decimal)
+    for tx in transactions:
+        if tx.type == "BUY":
+            running[tx.ticker_id] += tx.quantity
+        elif tx.type == "SELL":
+            running[tx.ticker_id] -= tx.quantity
+        cum_holdings[tx.ticker_id].append((tx.date, running[tx.ticker_id]))
+
+    # 4. For each dividend, binary-search the qty held at ex-date
+    total = Decimal(0)
+    for div in dividends:
+        entries = cum_holdings.get(div.ticker_id)
+        if not entries:
+            continue
+        # bisect on date: find last transaction with date <= div.date
+        dates = [e[0] for e in entries]
+        idx = bisect_right(dates, div.date) - 1
+        if idx < 0:
+            continue
+        qty = entries[idx][1]
+        if qty > 0:
+            total += qty * div.amount_per_share
 
     return total
 
@@ -377,8 +454,8 @@ def ensure_snapshots_uptodate(user_id: int):
             len(missing), user_id, earliest_missing,
         )
         compute_snapshots(user_id, from_date=earliest_missing)
-    elif today not in existing_dates or True:
-        # Always refresh today to pick up latest prices from cron / backfill
+    elif today not in existing_dates:
+        # Refresh today only if snapshot is genuinely missing
         compute_snapshots(user_id, from_date=today)
 
 

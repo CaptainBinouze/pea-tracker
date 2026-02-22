@@ -12,6 +12,14 @@
     <p class="page-subtitle">Vue d'ensemble de votre portefeuille PEA</p>
 </div>
 
+{% if backfill_pending %}
+<!-- Backfill in-progress banner — auto-refresh when done -->
+<div id="backfill-banner" class="backfill-banner" role="alert">
+    <svg class="spinner-sm" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-primary)" stroke-width="2.5" stroke-linecap="round"><path d="M12 2v4m0 12v4m-7.07-15.07 2.83 2.83m8.48 8.48 2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48 2.83-2.83"/></svg>
+    <span>Données en cours de mise à jour en arrière-plan…</span>
+</div>
+{% endif %}
+
 {% if summary.num_positions == 0 %}
 <!-- Empty state -->
 <div class="empty-state animate-fade-in-up">
@@ -156,6 +164,33 @@ document.addEventListener('DOMContentLoaded', function() {
         legendEl.appendChild(item);
     });
 });
+</script>
+{% endif %}
+
+{% if backfill_pending %}
+<script>
+(function() {
+    const banner = document.getElementById('backfill-banner');
+    if (!banner) return;
+    const POLL_MS = 5000;
+    const url = "{{ url_for('portfolio.backfill_status') }}";
+
+    function poll() {
+        fetch(url)
+            .then(r => r.json())
+            .then(data => {
+                if (data.done) {
+                    banner.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--positive)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span>Mise à jour terminée — rechargement…</span>';
+                    banner.classList.add('backfill-banner--done');
+                    setTimeout(() => location.reload(), 1200);
+                } else {
+                    setTimeout(poll, POLL_MS);
+                }
+            })
+            .catch(() => setTimeout(poll, POLL_MS));
+    }
+    setTimeout(poll, POLL_MS);
+})();
 </script>
 {% endif %}
 {% endblock %}
