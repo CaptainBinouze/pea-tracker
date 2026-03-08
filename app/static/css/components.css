@@ -10,6 +10,7 @@
     border-radius: var(--radius-lg);
     padding: var(--space-6);
     transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+    min-width: 0; /* Empêche le débordement horizontal sur mobile */
 }
 
 .card:hover {
@@ -97,6 +98,8 @@
     font-weight: var(--weight-bold);
     color: var(--text-primary);
     line-height: var(--leading-tight);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
 }
 
 .metric-sub {
@@ -343,7 +346,8 @@
     border-bottom: none;
 }
 
-.ticker-option:hover {
+.ticker-option:hover,
+.ticker-option.active {
     background: var(--bg-tertiary);
 }
 

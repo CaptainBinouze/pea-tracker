@@ -106,9 +106,44 @@ document.addEventListener('click', function(e) {
         document.getElementById('ticker-results').innerHTML = '';
     }
 });
+
+// Keyboard navigation for Ticker search
+document.getElementById('ticker_symbol').addEventListener('keydown', function(e) {
+    const results = document.getElementById('ticker-results');
+    const options = results.querySelectorAll('.ticker-option');
+    if (!options.length) return;
+
+    let activeIndex = Array.from(options).findIndex(opt => opt.classList.contains('active'));
+
+    if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        activeIndex = activeIndex < options.length - 1 ? activeIndex + 1 : 0;
+        updateActiveOption(options, activeIndex);
+    } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        activeIndex = activeIndex > 0 ? activeIndex - 1 : options.length - 1;
+        updateActiveOption(options, activeIndex);
+    } else if (e.key === 'Enter' && activeIndex >= 0) {
+        e.preventDefault();
+        document.getElementById('ticker_symbol').value = options[activeIndex].dataset.symbol;
+        results.innerHTML = '';
+    }
+});
+
+function updateActiveOption(options, index) {
+    options.forEach(opt => opt.classList.remove('active'));
+    if (index >= 0) {
+        const opt = options[index];
+        opt.classList.add('active');
+        opt.scrollIntoView({ block: 'nearest' });
+    }
+}
+
 // Open modal if there are form errors
 {% if form.errors %}
-document.getElementById('tx-modal').classList.add('active');
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('tx-modal').classList.add('active');
+});
 {% endif %}
 // Close modal on Escape
 document.addEventListener('keydown', function(e) {

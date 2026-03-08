@@ -307,7 +307,11 @@ tbody tr:last-child td {
 /* Legacy class support */
 .positive { color: var(--positive); }
 .negative { color: var(--negative); }
-.right    { text-align: right; }
+.right    { 
+    text-align: right; 
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+}
 
 /* ---- Horizontal rule ---- */
 hr {
