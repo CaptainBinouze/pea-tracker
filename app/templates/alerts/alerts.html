@@ -76,25 +76,32 @@
     </div>
     <div class="alerts-grid">
         {% for alert in triggered %}
-        <div class="alert-card alert-card--triggered">
+        <div class="alert-card alert-disabled alert-card--triggered">
             <div class="alert-card__header">
-                <span class="alert-card__symbol">{{ alert.ticker.symbol }}</span>
+                <div class="alert-card__symbol-group">
+                    <span class="alert-card__symbol">{{ alert.ticker.symbol }}</span>
+                    <span class="alert-card__name text-tertiary">{{ alert.ticker.name }}</span>
+                </div>
                 <span class="pill pill-warning">Déclenchée</span>
             </div>
+            
             <div class="alert-card__body">
-                <div class="alert-card__detail">
-                    <span class="text-secondary">Condition</span>
-                    <span>{{ "Au-dessus de" if alert.condition == "ABOVE" else "En-dessous de" }} {{ alert.threshold_price | currency }}</span>
+                <div class="alert-card__target">
+                    <span class="text-secondary">Condition dépassée</span>
+                    <span class="alert-target-price text-tertiary">{{ "Au-dessus" if alert.condition == "ABOVE" else "En-dessous" }} {{ alert.threshold_price | currency }}</span>
                 </div>
-                {% if alert.current_price is not none %}
-                <div class="alert-card__detail">
-                    <span class="text-secondary">Cours actuel</span>
-                    <span>{{ alert.current_price | currency }}</span>
-                </div>
-                {% endif %}
-                <div class="alert-card__detail">
-                    <span class="text-secondary">Déclenchée le</span>
-                    <span>{{ alert.last_triggered_at.strftime('%d/%m/%Y à %H:%M') if alert.last_triggered_at else '—' }}</span>
+
+                <div class="alert-card__current-info">
+                    {% if alert.current_price is not none %}
+                    <div class="alert-card__detail">
+                        <span class="text-secondary">Cours actuel</span>
+                        <span>{{ alert.current_price | currency }}</span>
+                    </div>
+                    {% endif %}
+                    <div class="alert-card__detail">
+                        <span class="text-secondary">Déclenchée le</span>
+                        <span>{{ alert.last_triggered_at.strftime('%d/%m/%Y à %H:%M') if alert.last_triggered_at else '—' }}</span>
+                    </div>
                 </div>
             </div>
             <div class="alert-card__actions">

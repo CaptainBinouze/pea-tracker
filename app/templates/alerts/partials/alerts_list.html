@@ -2,26 +2,49 @@
 {% if alerts %}
 <div class="alerts-grid">
     {% for alert in alerts %}
-    <div class="alert-card">
+    <div class="alert-card alert-glass-glow {{ 'alert-glow-positive' if alert.condition == 'ABOVE' else 'alert-glow-negative' }}">
         <div class="alert-card__header">
-            <span class="alert-card__symbol">{{ alert.ticker.symbol }}</span>
+            <div class="alert-card__symbol-group">
+                <span class="alert-card__symbol">{{ alert.ticker.symbol }}</span>
+                <span class="alert-card__name text-tertiary">{{ alert.ticker.name }}</span>
+            </div>
             <span class="pill pill-{{ 'positive' if alert.condition == 'ABOVE' else 'negative' }}">
                 {{ "Au-dessus" if alert.condition == "ABOVE" else "En-dessous" }}
             </span>
         </div>
+        
         <div class="alert-card__body">
-            <div class="alert-card__detail">
-                <span class="text-secondary">Seuil</span>
-                <span>{{ alert.threshold_price | currency }}</span>
+            <div class="alert-card__target">
+                <span class="text-secondary">Seuil visé</span>
+                <span class="alert-target-price">{{ alert.threshold_price | currency }}</span>
             </div>
+
             {% if alert.current_price is not none %}
-            <div class="alert-card__detail">
-                <span class="text-secondary">Cours actuel</span>
-                <span>{{ alert.current_price | currency }}</span>
+            {% set progress = 0 %}
+            {% if alert.current_price > 0 and alert.threshold_price > 0 %}
+                {% if alert.condition == "ABOVE" %}
+                    {% set progress = (alert.current_price / alert.threshold_price * 100) | float %}
+                {% else %}
+                    {% set progress = (alert.threshold_price / alert.current_price * 100) | float %}
+                {% endif %}
+                {% if progress > 100 %}{% set progress = 100 %}{% endif %}
+            {% endif %}
+            
+            <div class="alert-card__current-info">
+                <div class="alert-card__detail">
+                    <span class="text-secondary">Cours actuel</span>
+                    <span>{{ alert.current_price | currency }}</span>
+                </div>
+                <div class="alert-progress-track">
+                    <div class="alert-progress-fill {{ 'fill-positive' if alert.condition == 'ABOVE' else 'fill-negative' }}" style="width: {{ progress }}%;">
+                        <div class="alert-progress-dot"></div>
+                    </div>
+                </div>
             </div>
             {% endif %}
         </div>
-        <div class="alert-card__actions">
+        
+        <div class="alert-card__actions-overlay">
             <form method="post"
                   action="{{ url_for('alerts.delete_alert', alert_id=alert.id) }}"
                   hx-post="{{ url_for('alerts.delete_alert', alert_id=alert.id) }}"
@@ -29,8 +52,8 @@
                   hx-swap="innerHTML"
                   hx-confirm="Supprimer cette alerte ?">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="btn btn-ghost btn-sm" title="Supprimer">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                <button type="submit" class="btn btn-ghost btn-sm btn-delete-overlay" title="Supprimer">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                 </button>
             </form>
         </div>

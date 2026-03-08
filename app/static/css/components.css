@@ -585,20 +585,54 @@
     border-radius: var(--radius-md);
 }
 
-/* ---- Alert card (for alerts page) ---- */
+/* ---- Alert card (for alerts page) (REDESIGNED) ---- */
 .alert-card {
-    background: var(--bg-secondary);
+    position: relative;
+    background: rgba(17, 19, 24, 0.4);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-lg);
     padding: var(--space-5);
     display: flex;
     flex-direction: column;
     gap: var(--space-4);
-    transition: border-color var(--transition-fast);
+    transition: transform var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
+    overflow: hidden;
+}
+
+.alert-glass-glow::before {
+    content: '';
+    position: absolute;
+    top: -50px;
+    right: -50px;
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    filter: blur(50px);
+    opacity: 0.15;
+    z-index: 0;
+    pointer-events: none;
+    transition: opacity var(--transition-fast);
+}
+
+.alert-card:hover .alert-glass-glow::before,
+.alert-card:hover::before {
+    opacity: 0.25;
+}
+
+.alert-glow-positive::before { background: var(--positive); }
+.alert-glow-negative::before { background: var(--negative); }
+
+.alert-card > * {
+    position: relative;
+    z-index: 1;
 }
 
 .alert-card:hover {
     border-color: var(--border-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
 }
 
 .alert-card--triggered {
@@ -607,9 +641,15 @@
 
 .alert-card__header {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
     gap: var(--space-3);
+}
+
+.alert-card__symbol-group {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
 }
 
 .alert-card__symbol {
@@ -618,7 +658,34 @@
     color: var(--text-primary);
 }
 
+.alert-card__name {
+    font-size: 0.75rem;
+    color: var(--text-tertiary);
+    line-height: 1.2;
+}
+
 .alert-card__body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+}
+
+.alert-card__target {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.alert-target-price {
+    font-size: 1.75rem;
+    font-weight: var(--weight-bold);
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+    text-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
+    line-height: 1.1;
+}
+
+.alert-card__current-info {
     display: flex;
     flex-direction: column;
     gap: var(--space-2);
@@ -631,8 +698,78 @@
     font-size: var(--text-sm);
 }
 
-.alert-card__detail .text-secondary {
-    color: var(--text-tertiary);
+.alert-progress-track {
+    width: 100%;
+    height: 4px;
+    background: rgba(255,255,255,0.1);
+    border-radius: var(--radius-full);
+    margin-top: 4px;
+    overflow: hidden;
+    position: relative;
+}
+
+.alert-progress-fill {
+    height: 100%;
+    border-radius: var(--radius-full);
+    position: relative;
+    transition: width 0.5s ease;
+}
+
+.alert-progress-fill.fill-positive {
+    background: var(--positive);
+    box-shadow: 0 0 8px var(--positive);
+}
+
+.alert-progress-fill.fill-negative {
+    background: var(--negative);
+    box-shadow: 0 0 8px var(--negative);
+}
+
+.alert-progress-dot {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%) translateX(50%);
+    width: 8px;
+    height: 8px;
+    background: #fff;
+    border-radius: 50%;
+    box-shadow: 0 0 4px rgba(255, 255, 255, 0.8);
+}
+
+.alert-card__actions-overlay {
+    position: absolute;
+    bottom: var(--space-4);
+    right: var(--space-4);
+    opacity: 0;
+    transition: opacity var(--transition-fast) ease-in-out;
+    background: var(--bg-primary);
+    border-radius: var(--radius-md);
+    padding: 2px;
+    border: 1px solid var(--border-hover);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    z-index: 10;
+}
+
+.alert-card__actions-overlay:focus-within,
+.alert-card:hover .alert-card__actions-overlay {
+    opacity: 1;
+}
+
+.btn-delete-overlay {
+    color: var(--text-secondary);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border-radius: var(--radius-sm);
+}
+
+.btn-delete-overlay:hover {
+    color: var(--negative);
+    background: rgba(220, 38, 38, 0.15);
 }
 
 .alert-card__actions {
