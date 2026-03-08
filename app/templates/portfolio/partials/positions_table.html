@@ -23,7 +23,12 @@
                 <td class="right hide-mobile">{{ "%.2f" | format(p.quantity) }}</td>
                 <td class="right hide-mobile">{{ p.pru | currency }}</td>
                 <td class="right">
-                    <div>{{ p.current_price | currency }}</div>
+                    <div>
+                        {{ p.current_price | currency }}
+                        {% if p.is_live %}
+                        <span class="live-dot" title="Cours en direct — MAJ {{ p.live_updated_at.strftime('%H:%M') if p.live_updated_at else '' }}"></span>
+                        {% endif %}
+                    </div>
                     {% if p.daily_change %}
                     <span class="pill {{ 'pill-positive' if p.daily_change > 0 else 'pill-negative' }}" style="font-size:0.65rem">
                         {{ p.daily_change | pct }}

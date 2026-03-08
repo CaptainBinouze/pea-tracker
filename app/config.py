@@ -16,3 +16,9 @@ class Config:
         )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     WTF_CSRF_TIME_LIMIT = None  # No CSRF token expiry
+
+    # Intraday live quotes (APScheduler)
+    ENABLE_INTRADAY = os.environ.get("ENABLE_INTRADAY", "false").lower() in ("1", "true", "yes")
+    INTRADAY_INTERVAL_MINUTES = int(os.environ.get("INTRADAY_INTERVAL_MINUTES", "10"))
+    MARKET_OPEN_HOUR = float(os.environ.get("MARKET_OPEN_HOUR", "9"))       # CET
+    MARKET_CLOSE_HOUR = float(os.environ.get("MARKET_CLOSE_HOUR", "17.5"))  # CET (17:30)

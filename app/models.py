@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from decimal import Decimal
 
 from flask_login import UserMixin
@@ -16,7 +16,7 @@ class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(255), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(255), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     transactions = db.relationship("Transaction", back_populates="user", lazy="dynamic")
     snapshots = db.relationship("PortfolioSnapshot", back_populates="user", lazy="dynamic")
@@ -69,7 +69,7 @@ class Transaction(db.Model):
     fees = db.Column(db.Numeric(16, 4), default=0)
     date = db.Column(db.Date, nullable=False)
     notes = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     user = db.relationship("User", back_populates="transactions")
     ticker = db.relationship("Ticker", back_populates="transactions")
@@ -154,7 +154,7 @@ class Alert(db.Model):
     is_active = db.Column(db.Boolean, default=True)
     triggered = db.Column(db.Boolean, default=False)
     last_triggered_at = db.Column(db.DateTime)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     user = db.relationship("User", back_populates="alerts")
     ticker = db.relationship("Ticker")
@@ -177,6 +177,26 @@ class NotificationPreference(db.Model):
 
 
 # ---------------------------------------------------------------------------
+# Live Quote (intraday — one row per ticker, overwritten each cycle)
+# ---------------------------------------------------------------------------
+class LiveQuote(db.Model):
+    __tablename__ = "live_quotes"
+
+    id = db.Column(db.Integer, primary_key=True)
+    ticker_id = db.Column(
+        db.Integer, db.ForeignKey("tickers.id"), nullable=False, unique=True, index=True
+    )
+    price = db.Column(db.Numeric(16, 4), nullable=False)
+    change = db.Column(db.Numeric(16, 4))
+    change_pct = db.Column(db.Numeric(8, 4))
+    volume = db.Column(db.BigInteger)
+    market_state = db.Column(db.String(10), default="CLOSED")  # OPEN, CLOSED, PRE, POST
+    updated_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+
+    ticker = db.relationship("Ticker")
+
+
+# ---------------------------------------------------------------------------
 # Backfill Queue
 # ---------------------------------------------------------------------------
 class BackfillQueue(db.Model):
@@ -185,7 +205,7 @@ class BackfillQueue(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     ticker_id = db.Column(db.Integer, db.ForeignKey("tickers.id"), nullable=False)
     from_date = db.Column(db.Date, nullable=False)
-    requested_at = db.Column(db.DateTime, default=datetime.utcnow)
+    requested_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     status = db.Column(db.String(20), default="PENDING")  # PENDING, PROCESSING, DONE, FAILED
     error_message = db.Column(db.Text)
 

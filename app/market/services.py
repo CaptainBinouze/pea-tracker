@@ -6,7 +6,7 @@ import logging
 import os
 import shutil
 import tempfile
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Optional
 
@@ -14,7 +14,7 @@ import requests as _requests_lib
 import yfinance as yf
 
 from app.extensions import db
-from app.models import BackfillQueue, DailyPrice, Dividend, Ticker
+from app.models import BackfillQueue, DailyPrice, Dividend, LiveQuote, Ticker
 
 
 # ---------------------------------------------------------------------------
@@ -105,7 +105,7 @@ def get_or_create_ticker(symbol: str) -> Ticker:
         exchange=info.get("exchange", ""),
         currency=info.get("currency", "EUR"),
         sector=info.get("sector", ""),
-        last_updated=datetime.utcnow(),
+        last_updated=datetime.now(timezone.utc),
     )
     db.session.add(ticker)
     db.session.flush()  # get the id
@@ -334,3 +334,132 @@ def _safe_int(val) -> Optional[int]:
         return int(float(val))
     except (TypeError, ValueError):
         return None
+
+
+# ---------------------------------------------------------------------------
+# Live intraday quotes
+# ---------------------------------------------------------------------------
+
+def fetch_live_quotes() -> int:
+    """Fetch latest intraday prices for all tickers with open positions or
+    active alerts, and upsert into the ``LiveQuote`` table.
+
+    Uses ``yf.download`` with ``period='1d'`` and ``interval='5m'`` to get
+    the most recent 5-minute candle.  Returns the number of tickers updated.
+    """
+    from app.models import Alert, Transaction
+
+    # Tickers with open positions (SUM qty > 0) or active un-triggered alerts
+    position_tids = (
+        db.session.query(Transaction.ticker_id)
+        .group_by(Transaction.ticker_id)
+        .having(db.func.sum(
+            db.case(
+                (Transaction.type == "BUY", Transaction.quantity),
+                else_=-Transaction.quantity,
+            )
+        ) > 0)
+        .all()
+    )
+    alert_tids = (
+        db.session.query(Alert.ticker_id)
+        .filter_by(is_active=True, triggered=False)
+        .distinct()
+        .all()
+    )
+    all_tids = list({tid for (tid,) in position_tids} | {tid for (tid,) in alert_tids})
+    if not all_tids:
+        return 0
+
+    tickers = Ticker.query.filter(Ticker.id.in_(all_tids)).all()
+    id_to_symbol = {t.id: t.symbol for t in tickers}
+    symbol_to_id = {t.symbol: t.id for t in tickers}
+    symbols = list(id_to_symbol.values())
+    if not symbols:
+        return 0
+
+    logger.info("[live] Fetching intraday quotes for %d tickers", len(symbols))
+
+    try:
+        df = yf.download(
+            symbols,
+            period="1d",
+            interval="5m",
+            prepost=False,
+            progress=False,
+            threads=True,
+        )
+    except Exception as e:
+        logger.error("[live] yf.download (intraday) failed: %s", e)
+        return 0
+
+    if df.empty:
+        logger.warning("[live] yf.download returned empty dataframe")
+        return 0
+
+    # Fetch previous close for each ticker (for change computation)
+    prev_closes: dict[int, Decimal] = {}
+    for tid in all_tids:
+        prev = (
+            DailyPrice.query.filter_by(ticker_id=tid)
+            .order_by(DailyPrice.date.desc())
+            .first()
+        )
+        if prev and prev.close:
+            prev_closes[tid] = prev.close
+
+    updated = 0
+    now = datetime.now(timezone.utc)
+
+    for symbol in symbols:
+        ticker_id = symbol_to_id[symbol]
+        try:
+            # Extract per-symbol data (MultiIndex handling)
+            # yfinance >=1.0 always returns MultiIndex columns (Price, Ticker)
+            # even for a single symbol.
+            if symbol in df.columns.get_level_values(-1):
+                ticker_df = df.xs(symbol, level="Ticker", axis=1)
+            else:
+                logger.warning("[live] No data returned for %s", symbol)
+                continue
+
+            if ticker_df.empty:
+                continue
+
+            last_row = ticker_df.iloc[-1]
+            close_val = _safe_decimal(last_row.get("Close"))
+            if close_val is None:
+                continue
+
+            prev_close = prev_closes.get(ticker_id)
+            change = (close_val - prev_close) if prev_close else None
+            change_pct = (
+                (change / prev_close * 100) if change is not None and prev_close else None
+            )
+
+            existing = LiveQuote.query.filter_by(ticker_id=ticker_id).first()
+            if existing:
+                existing.price = close_val
+                existing.change = change
+                existing.change_pct = change_pct
+                existing.volume = _safe_int(last_row.get("Volume"))
+                existing.market_state = "OPEN"
+                existing.updated_at = now
+            else:
+                db.session.add(LiveQuote(
+                    ticker_id=ticker_id,
+                    price=close_val,
+                    change=change,
+                    change_pct=change_pct,
+                    volume=_safe_int(last_row.get("Volume")),
+                    market_state="OPEN",
+                    updated_at=now,
+                ))
+            updated += 1
+
+        except Exception as e:
+            logger.error("[live] Error processing %s: %s", symbol, e)
+
+    db.session.commit()
+    logger.info("[live] Updated %d/%d live quotes", updated, len(symbols))
+    return updated

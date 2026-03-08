@@ -15,7 +15,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app import create_app
 from app.extensions import db
-from app.models import Ticker, Alert, Transaction
+from app.models import Ticker, Alert, Transaction, LiveQuote
 from app.market.services import fetch_prices_for_tickers, fetch_dividends_for_tickers, process_backfill_queue
 from app.alerts.services import evaluate_alerts
 from app.portfolio.services import compute_snapshots, ensure_snapshots_uptodate
@@ -67,6 +67,11 @@ def run():
                 print(f"  - {a['ticker_symbol']} {a['condition']} {a['threshold']}")
         else:
             print("[CRON] No alerts triggered.")
+
+        # 6. Clear stale live quotes (consolidated into daily_prices now)
+        stale = LiveQuote.query.delete()
+        db.session.commit()
+        print(f"[CRON] Cleared {stale} stale live quote(s).")
 
         print("[CRON] Done.")
 

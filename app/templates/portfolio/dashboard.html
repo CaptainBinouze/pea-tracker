@@ -43,7 +43,7 @@
 <!-- Summary cards -->
 <div id="summary-cards"
      hx-get="{{ url_for('portfolio.dashboard_summary') }}"
-     hx-trigger="every 120s"
+     hx-trigger="every 60s"
      hx-swap="innerHTML">
     {% include "portfolio/partials/summary_cards.html" %}
 </div>
@@ -77,7 +77,7 @@
         </div>
         <div id="positions-table"
              hx-get="{{ url_for('portfolio.dashboard_positions') }}"
-             hx-trigger="every 120s"
+             hx-trigger="every 60s"
              hx-swap="innerHTML">
             {% set positions = summary.positions %}
             {% include "portfolio/partials/positions_table.html" %}

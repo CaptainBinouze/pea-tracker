@@ -11,7 +11,7 @@ from typing import Optional
 from sqlalchemy import func
 
 from app.extensions import db
-from app.models import DailyPrice, Dividend, PortfolioSnapshot, Ticker, Transaction
+from app.models import DailyPrice, Dividend, LiveQuote, PortfolioSnapshot, Ticker, Transaction
 
 logger = logging.getLogger(__name__)
 
@@ -114,6 +114,20 @@ def get_positions(user_id: int, *, _holdings: dict | None = None) -> list[dict]:
         elif rn == 2:
             entry["prev_close"] = close_val
 
+    # --- Overlay live quotes (if fresh enough, < 15 min) --------------------
+    from datetime import datetime, timedelta as _td, timezone
+
+    live_cutoff = datetime.now(timezone.utc) - _td(minutes=15)
+    live_quotes = (
+        LiveQuote.query
+        .filter(
+            LiveQuote.ticker_id.in_(open_tids),
+            LiveQuote.updated_at >= live_cutoff,
+        )
+        .all()
+    )
+    live_map: dict[int, LiveQuote] = {lq.ticker_id: lq for lq in live_quotes}
+
     # --- Build position list -------------------------------------------------
     positions = []
     total_portfolio_value = Decimal(0)
@@ -128,12 +142,32 @@ def get_positions(user_id: int, *, _holdings: dict | None = None) -> list[dict]:
         current_price = prices.get("latest_close")
         price_date = prices.get("latest_date")
         prev_close = prices.get("prev_close", current_price)
+        is_live = False
+        live_updated_at = None
+
+        # Use live quote if available and fresh
+        lq = live_map.get(ticker_id)
+        if lq is not None and lq.price is not None:
+            current_price = lq.price
+            is_live = True
+            live_updated_at = lq.updated_at
+            if lq.change_pct is not None:
+                daily_change_val = lq.change_pct
+            else:
+                daily_change_val = (
+                    ((current_price - prev_close) / prev_close * 100)
+                    if current_price and prev_close else 0
+                )
+        else:
+            daily_change_val = (
+                ((current_price - prev_close) / prev_close * 100)
+                if current_price and prev_close else 0
+            )
 
         pru = h["total_cost"] / h["qty"] if h["qty"] > 0 else 0
         market_value = h["qty"] * current_price if current_price else 0
         unrealized_pnl = (current_price - pru) * h["qty"] if current_price else 0
         unrealized_pnl_pct = ((current_price / pru) - 1) * 100 if current_price and pru > 0 else 0
-        daily_change = ((current_price - prev_close) / prev_close * 100) if current_price and prev_close else 0
 
         total_portfolio_value += market_value
 
@@ -148,8 +182,10 @@ def get_positions(user_id: int, *, _holdings: dict | None = None) -> list[dict]:
             "unrealized_pnl": unrealized_pnl,
             "unrealized_pnl_pct": unrealized_pnl_pct,
             "realized_pnl": h["realized_pnl"],
-            "daily_change": daily_change,
+            "daily_change": daily_change_val,
             "weight": 0,
+            "is_live": is_live,
+            "live_updated_at": live_updated_at,
         })
 
     # Calculate weights
@@ -195,6 +231,7 @@ def get_portfolio_summary(user_id: int) -> dict:
         "total_dividends": total_dividends,
         "total_return": total_unrealized + total_realized + total_dividends,
         "num_positions": len(positions),
+        "has_live": any(p["is_live"] for p in positions),
     }
 
 
