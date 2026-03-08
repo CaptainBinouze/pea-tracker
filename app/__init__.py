@@ -61,14 +61,14 @@ def create_app(config_class=Config):
     def currency_filter(value):
         if value is None:
             return "—"
-        return f"{value:,.2f} €".replace(",", " ")
+        return f"{value:,.2f}\xa0€".replace(",", "\xa0")
 
     @app.template_filter("pct")
     def pct_filter(value):
         if value is None:
             return "—"
         sign = "+" if value > 0 else ""
-        return f"{sign}{value:.2f} %"
+        return f"{sign}{value:.2f}\xa0%"
 
     @app.template_filter("color")
     def color_filter(value):
