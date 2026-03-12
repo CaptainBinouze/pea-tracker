@@ -47,6 +47,9 @@ def _intraday_job(app):
         interval = app.config.get("INTRADAY_INTERVAL_MINUTES", 10)
         cutoff = datetime.now(timezone.utc) - timedelta(minutes=interval - 2)
         recent = db.session.query(db.func.max(LiveQuote.updated_at)).scalar()
+        # PostgreSQL may return a naive datetime — normalise to UTC-aware
+        if recent and recent.tzinfo is None:
+            recent = recent.replace(tzinfo=timezone.utc)
         if recent and recent >= cutoff:
             logger.debug("[scheduler] Another worker already ran this tick \u2014 skipping.")
             return

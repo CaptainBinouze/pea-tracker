@@ -5,6 +5,8 @@ Alert evaluation logic.
 import logging
 from datetime import datetime, timezone
 
+from sqlalchemy import text
+
 from app.extensions import db
 from app.models import Alert, DailyPrice, LiveQuote
 from app.notifications.dispatcher import dispatch_alert_notifications
@@ -18,6 +20,10 @@ def evaluate_alerts(*, use_live: bool = False) -> list[dict]:
 
     When *use_live* is ``True`` the price is read from ``LiveQuote`` first
     (with a fallback to ``DailyPrice``).
+
+    Uses an atomic UPDATE … WHERE triggered=false guard so that concurrent
+    workers (multiple Gunicorn processes, scheduler + cron overlap) can
+    never dispatch the same notification twice.
 
     Returns list of triggered alerts info.
     """
@@ -49,8 +55,23 @@ def evaluate_alerts(*, use_live: bool = False) -> list[dict]:
             is_triggered = True
 
         if is_triggered:
-            alert.triggered = True
-            alert.last_triggered_at = datetime.now(timezone.utc)
+            # Atomic flag flip — only the first process to execute this
+            # UPDATE will get rowcount == 1; every other concurrent caller
+            # will see rowcount == 0 and skip the notification.
+            now = datetime.now(timezone.utc)
+            result = db.session.execute(
+                text(
+                    "UPDATE alerts "
+                    "SET triggered = true, last_triggered_at = :now "
+                    "WHERE id = :id AND triggered = false"
+                ),
+                {"id": alert.id, "now": now},
+            )
+            db.session.commit()
+
+            if result.rowcount != 1:
+                # Another worker already triggered this alert — skip.
+                continue
 
             alert_data = {
                 "alert_id": alert.id,
@@ -66,11 +87,10 @@ def evaluate_alerts(*, use_live: bool = False) -> list[dict]:
                 alert.ticker.symbol, alert.condition, alert.threshold_price, current_price
             )
 
-            # Send notifications to the user
+            # Send notification only after the flag is persisted
             try:
                 dispatch_alert_notifications(alert_data, alert.user)
             except Exception as exc:
                 logger.error("Notification dispatch failed for alert %s: %s", alert.id, exc)
 
-    db.session.commit()
     return triggered
